@@ -110,13 +110,48 @@ input[type="text"]:focus { border-color: var(--primary); }
 
 .lobby-content { display: flex; justify-content: center; width: 100%; }
 
-#room-list-area, #room-detail-area {
+#room-action-area {
     background-color: var(--bg-panel);
     padding: 30px;
     border-radius: 12px;
     width: 100%;
     max-width: 500px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    text-align: center;
+}
+
+.room-create-section, .room-join-section {
+    padding: 10px 0;
+}
+
+.btn-large {
+    width: 100%;
+    padding: 15px;
+    font-size: 18px;
+}
+
+.divider {
+    display: flex;
+    align-items: center;
+    color: var(--text-muted);
+    margin: 20px 0;
+}
+
+.divider::before, .divider::after {
+    content: "";
+    flex: 1;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    margin: 0 15px;
+}
+
+.input-group {
+    display: flex;
+    gap: 10px;
+}
+
+.input-group input {
+    margin-bottom: 0;
+    flex: 1;
 }
 
 .room-list-header, .room-detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }

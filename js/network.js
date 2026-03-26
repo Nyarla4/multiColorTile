@@ -113,6 +113,54 @@ class NetworkClient {
             type: 'broadcast', event: 'rematch_request', payload: { newRoomId }
         });
     }
+
+    // [흐름] DB에 방 정보 생성 (방장 전용)
+    async createRoomDB(roomCode, hostId) {
+        if (!this.supabase) return false;
+        try {
+            const { error } = await this.supabase
+                .from('rooms')
+                .insert([{ room_code: roomCode, host_id: hostId, status: 'waiting' }]);
+            
+            if (error) {
+                console.error("방 생성 실패:", error);
+                return false;
+            }
+            return true;
+        } catch (err) {
+            return false;
+        }
+    }
+
+    // [흐름] DB에서 방 코드 유효성 검증 (참여자 전용)
+    async checkRoomDB(roomCode) {
+        if (!this.supabase) return false;
+        try {
+            const { data, error } = await this.supabase
+                .from('rooms')
+                .select('*')
+                .eq('room_code', roomCode)
+                .single();
+
+            if (error || !data) {
+                console.error("방 찾을 수 없음:", error);
+                return false;
+            }
+            if (data.status !== 'waiting') {
+                console.error("이미 게임이 시작된 방입니다.");
+                return false;
+            }
+            return true;
+        } catch (err) {
+            return false;
+        }
+    }
+
+    // [흐름] 게임 시작 시 DB 상태 업데이트 (목록에서 안 보이게)
+    async updateRoomStatusPlaying(roomCode) {
+        if (!this.supabase) return;
+        await this.supabase.from('rooms').update({ status: 'playing' }).eq('room_code', roomCode);
+    }
 }
 
 const networkManager = new NetworkClient();

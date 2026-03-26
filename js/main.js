@@ -4,7 +4,9 @@
  * 원칙: 특정 모듈의 구현체를 수정하거나, HTML 구조를 직접 조작(.hidden 토글 제외)하지 않음.
  */
 
-// [구조] 전역 구성
+// ==========================================
+// [구조] 전역 구성 및 상태
+// ==========================================
 const CONFIG = {
     SUPABASE_URL: 'https://mhoscqcewmrorfxcewsn.supabase.co',
     SUPABASE_KEY: 'sb_publishable_2e33xf0hNMg3sP4xNTIiwQ_HGhFFu12'
@@ -17,7 +19,9 @@ const appState = {
     roomId: null
 };
 
-// [구조] 뷰 참조
+// ==========================================
+// [구조] 뷰 및 UI 컴포넌트 참조
+// ==========================================
 const views = {
     start: document.getElementById('start-view'),
     lobby: document.getElementById('lobby-view'),
@@ -26,15 +30,23 @@ const views = {
 };
 
 const ui = {
-    roomListArea: document.getElementById('room-list-area'),
+    // 로비 영역 (구조 변경됨: 목록 -> 액션 영역)
+    roomActionArea: document.getElementById('room-action-area'),
     roomDetailArea: document.getElementById('room-detail-area'),
+    roomCodeInput: document.getElementById('room-code-input'),
+    displayRoomCode: document.getElementById('display-room-code'),
+    btnJoinRoom: document.getElementById('btn-join-room'),
+    
+    // 게임 및 결과 영역
     btnStartGame: document.getElementById('btn-start-game'),
     btnReady: document.getElementById('btn-ready'),
     btnReturnRoom: document.getElementById('btn-return-room'),
     rematchPopup: document.getElementById('rematch-popup')
 };
 
-// [흐름] 화면 전환 (구조를 해치지 않고 클래스만 토글)
+// ==========================================
+// [흐름] 화면 전환 제어
+// ==========================================
 function switchView(targetViewId) {
     Object.values(views).forEach(v => {
         v.classList.add('hidden');
@@ -48,8 +60,13 @@ function switchView(targetViewId) {
 
 function toggleRoomDetail(show) {
     if (show) {
-        ui.roomListArea.classList.add('hidden');
+        ui.roomActionArea.classList.add('hidden');
         ui.roomDetailArea.classList.remove('hidden');
+        
+        // [구조] 화면에 현재 방 코드 렌더링
+        if (ui.displayRoomCode) {
+            ui.displayRoomCode.innerText = appState.roomId;
+        }
         
         if (appState.isHost) {
             ui.btnStartGame.classList.remove('hidden');
@@ -59,15 +76,19 @@ function toggleRoomDetail(show) {
             ui.btnReady.classList.remove('hidden');
         }
     } else {
-        ui.roomListArea.classList.remove('hidden');
+        ui.roomActionArea.classList.remove('hidden');
         ui.roomDetailArea.classList.add('hidden');
+        // [구조 초기화] 대기실로 나갈 때 입력창 비우기
+        if (ui.roomCodeInput) ui.roomCodeInput.value = '';
     }
 }
 
-// [흐름] 이벤트 바인딩 및 모듈 결합
+// ==========================================
+// [흐름] 이벤트 바인딩 및 통신 연동
+// ==========================================
 function initEvents() {
     
-    // --- 통신 모듈 콜백 연결 ---
+    // --- 통신 모듈 수신 콜백 연결 ---
     networkManager.onGameStarted = (seed) => {
         switchView('game');
         gameInstance.initGame(seed);
@@ -89,7 +110,7 @@ function initEvents() {
         networkManager.sendScore(appState.userId, newScore);
     };
 
-    // --- UI 이벤트 처리 ---
+    // --- UI 클릭 이벤트: 시작 및 입장 ---
     document.getElementById('btn-enter-lobby').addEventListener('click', () => {
         const nickname = document.getElementById('nickname-input').value.trim();
         if (!nickname) { alert('닉네임을 입력해주세요!'); return; }
@@ -99,29 +120,62 @@ function initEvents() {
         switchView('lobby');
     });
 
-    document.getElementById('btn-create-room').addEventListener('click', () => {
-        appState.isHost = true;
-        appState.roomId = 'ROOM_' + Math.random().toString(36).substr(2, 9);
+    // --- [흐름 변경] A. 방 만들기 (방장 전용) ---
+    document.getElementById('btn-create-room').addEventListener('click', async () => {
+        // 1. 랜덤 6자리 코드 생성 (영문 대문자+숫자)
+        const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
         
-        networkManager.joinRoom(appState.roomId, appState.nickname, appState.userId);
-        toggleRoomDetail(true);
+        // 2. DB에 방 데이터 삽입 대기
+        const success = await networkManager.createRoomDB(newCode, appState.userId);
+        
+        if (success) {
+            appState.isHost = true;
+            appState.roomId = newCode;
+            networkManager.joinRoom(appState.roomId, appState.nickname, appState.userId);
+            toggleRoomDetail(true);
+        } else {
+            alert("방 생성에 실패했습니다. 다시 시도해주세요.");
+        }
     });
 
+    // --- [흐름 추가] B. 코드로 입장하기 (일반 멤버) ---
+    ui.btnJoinRoom.addEventListener('click', async () => {
+        const code = ui.roomCodeInput.value.trim().toUpperCase();
+        if (code.length !== 6) {
+            alert("6자리 방 코드를 입력해주세요.");
+            return;
+        }
+
+        // 1. DB에서 코드 유효성 및 상태(waiting) 검증 대기
+        const isValid = await networkManager.checkRoomDB(code);
+        
+        if (isValid) {
+            appState.isHost = false;
+            appState.roomId = code;
+            networkManager.joinRoom(appState.roomId, appState.nickname, appState.userId);
+            toggleRoomDetail(true);
+        } else {
+            alert("존재하지 않거나 이미 게임이 시작된 방입니다.");
+        }
+    });
+
+    // --- 기타 진행 및 종료 흐름 ---
     document.getElementById('btn-leave-room').addEventListener('click', () => {
         appState.isHost = false;
         appState.roomId = null;
-        
         networkManager.leaveRoom();
         toggleRoomDetail(false);
     });
 
     ui.btnStartGame.addEventListener('click', () => {
-        const seed = Math.random(); // 임시 시드
+        const seed = Math.random(); 
         networkManager.sendGameStart(seed);
+        // [흐름 추가] 게임 시작 시 DB의 방 상태를 'playing'으로 변경
+        networkManager.updateRoomStatusPlaying(appState.roomId);
     });
 
     ui.btnReturnRoom.addEventListener('click', () => {
-        networkManager.sendRematchRequest('NEW_ROOM_ID'); // 방장 리매치
+        networkManager.sendRematchRequest('NEW_ROOM_ID'); 
         switchView('lobby');
         toggleRoomDetail(true);
     });
@@ -147,7 +201,9 @@ function initEvents() {
     });
 }
 
-// [흐름] 진입점
+// ==========================================
+// [흐름] 앱 진입점
+// ==========================================
 window.onload = () => {
     if (typeof networkManager !== 'undefined') {
         networkManager.init(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
