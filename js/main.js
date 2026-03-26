@@ -1,6 +1,6 @@
 /**
  * js/main.js
- * 역할: [흐름] 애플리케이션 진입점, 화면 전환 관리, 각 모듈(network, game) 연결.
+ * 역할: [흐름] 애플리케이션 진입점, 화면 전환 관리, 각 모듈 연결 및 상태 렌더링
  * 원칙: 특정 모듈의 구현체를 수정하거나, HTML 구조를 직접 조작(.hidden 토글 제외)하지 않음.
  */
 
@@ -17,7 +17,7 @@ const appState = {
     nickname: '',
     isHost: false,
     roomId: null,
-    isReady: false // 추가: 준비 상태 추적
+    isReady: false // 준비 상태
 };
 
 // ==========================================
@@ -31,22 +31,24 @@ const views = {
 };
 
 const ui = {
-    // 로비 영역 (구조 변경됨: 목록 -> 액션 영역)
+    // 로비 (방 생성/입장)
     roomActionArea: document.getElementById('room-action-area'),
-    roomDetailArea: document.getElementById('room-detail-area'),
     roomCodeInput: document.getElementById('room-code-input'),
-    displayRoomCode: document.getElementById('display-room-code'),
     btnJoinRoom: document.getElementById('btn-join-room'),
+    myNicknameDisplay: document.getElementById('my-nickname-display'),
     
-    // 게임 및 결과 영역
+    // 대기실 내부
+    roomDetailArea: document.getElementById('room-detail-area'),
+    displayRoomCode: document.getElementById('display-room-code'),
+    playerList: document.getElementById('player-list'),
+    inRoomNickname: document.getElementById('in-room-nickname'),
+    btnUpdateNickname: document.getElementById('btn-update-nickname'),
+    
+    // 컨트롤 버튼
     btnStartGame: document.getElementById('btn-start-game'),
     btnReady: document.getElementById('btn-ready'),
     btnReturnRoom: document.getElementById('btn-return-room'),
-    rematchPopup: document.getElementById('rematch-popup'),
-
-    playerList: document.getElementById('player-list'), // 추가
-    inRoomNickname: document.getElementById('in-room-nickname'), // 추가
-    btnUpdateNickname: document.getElementById('btn-update-nickname'), // 추가
+    rematchPopup: document.getElementById('rematch-popup')
 };
 
 // ==========================================
@@ -67,11 +69,7 @@ function toggleRoomDetail(show) {
     if (show) {
         ui.roomActionArea.classList.add('hidden');
         ui.roomDetailArea.classList.remove('hidden');
-        
-        // [구조] 화면에 현재 방 코드 렌더링
-        if (ui.displayRoomCode) {
-            ui.displayRoomCode.innerText = appState.roomId;
-        }
+        if (ui.displayRoomCode) ui.displayRoomCode.innerText = appState.roomId;
         
         if (appState.isHost) {
             ui.btnStartGame.classList.remove('hidden');
@@ -83,7 +81,6 @@ function toggleRoomDetail(show) {
     } else {
         ui.roomActionArea.classList.remove('hidden');
         ui.roomDetailArea.classList.add('hidden');
-        // [구조 초기화] 대기실로 나갈 때 입력창 비우기
         if (ui.roomCodeInput) ui.roomCodeInput.value = '';
     }
 }
@@ -94,14 +91,32 @@ function toggleRoomDetail(show) {
 function initEvents() {
     
     // --- 통신 모듈 수신 콜백 연결 ---
+    networkManager.onPlayerListUpdated = (players) => {
+        ui.playerList.innerHTML = ''; // 기존 구조 초기화
+        
+        players.forEach(p => {
+            const li = document.createElement('li');
+            const isMe = p.userId === appState.userId;
+            
+            let statusText = p.isReady ? '준비완료' : '대기중';
+            let statusColor = p.isReady ? 'var(--accent)' : 'var(--text-muted)';
+            if (p.userId === appState.roomId) statusText = '방장'; // 방장은 상태 예외 처리
+
+            li.innerHTML = `
+                <span style="font-weight: bold; color: ${isMe ? 'var(--primary)' : 'inherit'}">
+                    ${p.nickname} ${isMe ? '(나)' : ''}
+                </span>
+                <span style="color: ${statusColor}; font-weight: bold; font-size: 0.9em;">
+                    ${statusText}
+                </span>
+            `;
+            ui.playerList.appendChild(li);
+        });
+    };
+
     networkManager.onGameStarted = (seed) => {
         switchView('game');
         gameInstance.initGame(seed);
-        // 테스트용: 3초 후 결과창 이동
-        setTimeout(() => {
-            switchView('result');
-            ui.btnReturnRoom.disabled = !appState.isHost;
-        }, 3000); 
     };
 
     networkManager.onRematchRequested = (newRoomId) => {
@@ -110,124 +125,105 @@ function initEvents() {
         }
     };
 
-    // --- 게임 모듈 콜백 연결 ---
     gameInstance.onScoreChanged = (newScore) => {
         networkManager.sendScore(appState.userId, newScore);
     };
 
-    // --- UI 클릭 이벤트: 시작 및 입장 ---
+    // --- UI 클릭 이벤트 ---
+    
+    // 1. 첫 화면 로비 입장 (닉네임 자동 생성)
     document.getElementById('btn-enter-lobby').addEventListener('click', () => {
         if (!appState.nickname) {
             appState.nickname = 'Guest_' + Math.floor(Math.random() * 1000);
         }
+        ui.myNicknameDisplay.innerText = `내 닉네임: ${appState.nickname}`;
         switchView('lobby');
-
-        // --- [흐름 추가] B. 방 내부 닉네임 변경 적용 ---
-        ui.btnUpdateNickname.addEventListener('click', () => {
-            const newName = ui.inRoomNickname.value.trim();
-            if (newName) {
-                appState.nickname = newName;
-                // 변경된 닉네임을 서버(Presence)에 재전송
-                networkManager.updatePresenceState(appState.userId, appState.nickname, appState.isReady);
-                ui.inRoomNickname.value = ''; // 입력창 비우기
-                ui.inRoomNickname.placeholder = `현재 닉네임: ${newName}`;
-            }
-        });
-
-        // --- [흐름 추가] C. 준비 완료 상태 토글 적용 ---
-        ui.btnReady.addEventListener('click', () => {
-            appState.isReady = !appState.isReady;
-            ui.btnReady.innerText = appState.isReady ? '준비 취소' : '준비 완료';
-            ui.btnReady.style.backgroundColor = appState.isReady ? 'var(--danger)' : 'var(--primary)';
-            // 준비 상태가 변했으므로 서버(Presence)에 재전송
-            networkManager.updatePresenceState(appState.userId, appState.nickname, appState.isReady);
-        });
-
-        // --- [흐름 추가] D. 접속자 목록 실시간 렌더링 ---
-        networkManager.onPlayerListUpdated = (players) => {
-            ui.playerList.innerHTML = ''; // 기존 목록 초기화
-
-            players.forEach(p => {
-                const li = document.createElement('li');
-                const isMe = p.userId === appState.userId;
-
-                // 상태 텍스트 분기
-                let statusText = p.isReady ? '준비완료' : '대기중';
-                let statusColor = p.isReady ? 'var(--accent)' : 'var(--text-muted)';
-
-                li.innerHTML = `
-                <span style="font-weight: bold; color: ${isMe ? 'var(--primary)' : 'inherit'}">
-                    ${p.nickname} ${isMe ? '(나)' : ''}
-                </span>
-                <span style="color: ${statusColor}; font-size: 0.9em;">
-                    ${statusText}
-                </span>
-            `;
-                ui.playerList.appendChild(li);
-            });
-        };
     });
 
-    // --- [흐름 변경] A. 방 만들기 (방장 전용) ---
+    // 2. 방 만들기
     document.getElementById('btn-create-room').addEventListener('click', async () => {
-        // 1. 랜덤 6자리 코드 생성 (영문 대문자+숫자)
         const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-        
-        // 2. DB에 방 데이터 삽입 대기
         const success = await networkManager.createRoomDB(newCode, appState.userId);
         
         if (success) {
             appState.isHost = true;
-            appState.roomId = newCode;
+            appState.roomId = newCode; 
             networkManager.joinRoom(appState.roomId, appState.nickname, appState.userId);
             toggleRoomDetail(true);
         } else {
-            alert("방 생성에 실패했습니다. 다시 시도해주세요.");
+            alert("방 생성에 실패했습니다.");
         }
     });
 
-    // --- [흐름 추가] B. 코드로 입장하기 (일반 멤버) ---
+    // 3. 코드로 입장
     ui.btnJoinRoom.addEventListener('click', async () => {
         const code = ui.roomCodeInput.value.trim().toUpperCase();
-        if (code.length !== 6) {
-            alert("6자리 방 코드를 입력해주세요.");
-            return;
-        }
+        if (code.length !== 6) { alert("6자리 방 코드를 입력해주세요."); return; }
 
-        // 1. DB에서 코드 유효성 및 상태(waiting) 검증 대기
         const isValid = await networkManager.checkRoomDB(code);
-        
         if (isValid) {
             appState.isHost = false;
             appState.roomId = code;
             networkManager.joinRoom(appState.roomId, appState.nickname, appState.userId);
             toggleRoomDetail(true);
         } else {
-            alert("존재하지 않거나 이미 게임이 시작된 방입니다.");
+            alert("존재하지 않거나 게임이 시작된 방입니다.");
         }
     });
 
-    // --- 기타 진행 및 종료 흐름 ---
+    // 4. 대기실 내부: 닉네임 변경 적용
+    ui.btnUpdateNickname.addEventListener('click', () => {
+        const newName = ui.inRoomNickname.value.trim();
+        if (newName) {
+            appState.nickname = newName;
+            ui.myNicknameDisplay.innerText = `내 닉네임: ${appState.nickname}`;
+            ui.inRoomNickname.value = ''; 
+            ui.inRoomNickname.placeholder = `현재 닉네임: ${newName}`;
+            
+            if(networkManager.updatePresenceState) {
+                networkManager.updatePresenceState(appState.userId, appState.nickname, appState.isReady);
+            }
+        }
+    });
+
+    // 5. 대기실 내부: 준비 상태 토글
+    ui.btnReady.addEventListener('click', () => {
+        appState.isReady = !appState.isReady;
+        ui.btnReady.innerText = appState.isReady ? '준비 취소' : '준비 완료';
+        ui.btnReady.style.backgroundColor = appState.isReady ? 'var(--danger)' : 'var(--primary)';
+        
+        if(networkManager.updatePresenceState) {
+            networkManager.updatePresenceState(appState.userId, appState.nickname, appState.isReady);
+        }
+    });
+
+    // 6. 방 나가기 및 정리
     document.getElementById('btn-leave-room').addEventListener('click', () => {
         appState.isHost = false;
         appState.roomId = null;
+        appState.isReady = false; 
+        ui.btnReady.innerText = '준비 완료';
+        ui.btnReady.style.backgroundColor = 'var(--primary)';
+        
         networkManager.leaveRoom();
         toggleRoomDetail(false);
     });
 
+    // 7. 게임 시작 (방장 전용)
     ui.btnStartGame.addEventListener('click', () => {
         const seed = Math.random(); 
         networkManager.sendGameStart(seed);
-        // [흐름 추가] 게임 시작 시 DB의 방 상태를 'playing'으로 변경
         networkManager.updateRoomStatusPlaying(appState.roomId);
     });
 
+    // 8. 결과창: 방장 리매치 요청
     ui.btnReturnRoom.addEventListener('click', () => {
         networkManager.sendRematchRequest('NEW_ROOM_ID'); 
         switchView('lobby');
         toggleRoomDetail(true);
     });
 
+    // 9. 결과창: 완전히 나가기
     document.getElementById('btn-exit-game').addEventListener('click', () => {
         networkManager.leaveRoom();
         appState.isHost = false;
@@ -235,12 +231,14 @@ function initEvents() {
         toggleRoomDetail(false);
     });
 
+    // 10. 팝업: 멤버 리매치 수락
     document.getElementById('btn-popup-return').addEventListener('click', () => {
         ui.rematchPopup.classList.add('hidden');
         switchView('lobby');
         toggleRoomDetail(true);
     });
 
+    // 11. 팝업: 멤버 리매치 거절
     document.getElementById('btn-popup-exit').addEventListener('click', () => {
         ui.rematchPopup.classList.add('hidden');
         networkManager.leaveRoom();
@@ -257,5 +255,5 @@ window.onload = () => {
         networkManager.init(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
     }
     initEvents();
-    console.log("메인 흐름 제어기 및 실시간 통신망 초기화 완료.");
+    console.log("메인 흐름 제어기 초기화 완료.");
 };
