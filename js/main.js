@@ -197,20 +197,24 @@ function initEvents() {
     // [버그 수정] 준비 완료 검증 및 방장 화면 전환 흐름
     ui.btnStartGame.addEventListener('click', () => {
         const playersArray = Array.from(networkManager.players.values());
-        const members = playersArray.filter(p => !p.isHost); // 방장을 제외한 일반 멤버 추출
+        const members = playersArray.filter(p => !p.isHost); // 방장 제외 멤버
         
-        // 멤버가 한 명 이상 있고, 멤버 중 한 명이라도 준비가 안 되어있다면 게임 시작 차단
-        if (members.length > 0 && !members.every(p => p.isReady)) {
+        // [검증 흐름] 혼자 있거나, 멤버 중 준비 안 된 사람이 있으면 차단
+        if (members.length === 0) {
+            alert("최소 1명 이상의 멤버가 들어와야 게임을 시작할 수 있습니다!");
+            return;
+        }
+        if (!members.every(p => p.isReady)) {
             alert("모든 멤버가 준비를 완료해야 시작할 수 있습니다!");
             return;
         }
 
         const seed = Math.random(); 
-        networkManager.sendGameStart(seed);
-        networkManager.updateRoomStatusPlaying(appState.roomId);
         
-        // broadcast 옵션(self: false) 때문에 방장은 신호를 못 받으므로, 본인은 직접 흐름을 트리거함.
-        networkManager.onGameStarted(seed);
+        // [실행 흐름] 순서 주의!
+        networkManager.sendGameStart(seed); // 1. 멤버들에게 시작 신호 쏘기
+        networkManager.onGameStarted(seed); // 2. 방장 본인도 즉시 게임 화면으로 강제 이동
+        networkManager.updateRoomStatusPlaying(appState.roomId); // 3. DB 상태 변경 (난입 방지)
     });
 
     ui.btnReturnRoom.addEventListener('click', () => {

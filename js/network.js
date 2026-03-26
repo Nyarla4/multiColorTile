@@ -68,9 +68,15 @@ class NetworkClient {
         });
     }
 
-    // [흐름 추가] 내 상태(닉네임, 준비)가 변했을 때 Presence 업데이트
+    // [흐름 수정] 내 상태 변경 시 화면 즉각 반영
     async updatePresenceState(newState) {
         if (!this.currentChannel) return;
+        
+        // 1. [로컬 흐름 강제 업데이트] 서버 응답을 기다리지 않고 내 화면부터 즉시 변경
+        this.players.set(newState.userId, newState);
+        this.onPlayerListUpdated(Array.from(this.players.values()));
+
+        // 2. [서버 동기화] 변경된 상태 브로드캐스트
         await this.currentChannel.track(newState);
     }
 
