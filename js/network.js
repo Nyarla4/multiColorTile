@@ -161,6 +161,17 @@ class NetworkClient {
         if (!this.supabase) return;
         await this.supabase.from('rooms').update({ status: 'playing' }).eq('room_code', roomCode);
     }
+
+    // [흐름] 닉네임 변경 및 준비 상태 갱신을 위한 Presence 업데이트
+    async updatePresenceState(userId, nickname, isReady, score = 0) {
+        if (!this.currentChannel) return;
+        await this.currentChannel.track({
+            userId: userId,
+            nickname: nickname,
+            score: score,
+            isReady: isReady
+        });
+    }
 }
 
 const networkManager = new NetworkClient();

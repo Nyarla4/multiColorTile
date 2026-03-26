@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,20 +8,17 @@
     <!-- [구조] 시각적 레이아웃 연결 -->
     <link rel="stylesheet" href="css/style.css">
 </head>
+
 <body>
     <div id="app-container">
-        
+
         <!-- ==========================================
              1. 시작 페이지 (Start View)
              ========================================== -->
         <section id="start-view" class="view-section active">
             <div class="content-box">
                 <h1>컬러 타일 멀티플레이</h1>
-                <p>동체시력과 피지컬의 한계에 도전하세요!</p>
-                <div class="input-group">
-                    <input type="text" id="nickname-input" placeholder="사용할 닉네임을 입력하세요" maxlength="10">
-                    <button id="btn-enter-lobby">게임 입장하기</button>
-                </div>
+                <button id="btn-enter-lobby" class="btn-large">로비 입장하기</button>
             </div>
         </section>
 
@@ -32,7 +30,7 @@
                 <h2>대기실</h2>
                 <span id="my-nickname-display">내 닉네임: </span>
             </div>
-            
+
             <div class="lobby-content">
                 <!-- 2-A. 방 생성 및 입장 영역 (기존 room-list-area 대체) -->
                 <div id="room-action-area">
@@ -40,14 +38,15 @@
                         <h3>새로운 게임 시작</h3>
                         <button id="btn-create-room" class="btn-large">방 만들기</button>
                     </div>
-                    
+
                     <div class="divider">또는</div>
-                    
+
                     <div class="room-join-section">
                         <h3>방 코드로 참여</h3>
                         <div class="input-group">
                             <!-- text-transform: uppercase로 대문자만 보이게 시각적 구조화 -->
-                            <input type="text" id="room-code-input" placeholder="방 코드 6자리 (예: A1B2C3)" maxlength="6" style="text-transform: uppercase;">
+                            <input type="text" id="room-code-input" placeholder="방 코드 6자리 (예: A1B2C3)" maxlength="6"
+                                style="text-transform: uppercase;">
                             <button id="btn-join-room">입장하기</button>
                         </div>
                     </div>
@@ -57,11 +56,20 @@
                 <div id="room-detail-area" class="hidden">
                     <div class="room-detail-header">
                         <!-- 방 제목 대신 코드를 보여주도록 수정 -->
-                        <h3 id="current-room-title">방 코드: <span id="display-room-code" style="color: var(--accent); font-size: 1.2em;"></span></h3>
+                        <h3 id="current-room-title">방 코드: <span id="display-room-code"
+                                style="color: var(--accent);"></span></h3>
                         <button id="btn-leave-room">나가기</button>
                     </div>
-                    <!-- (이하 player-list, room-actions 부분은 기존과 동일) -->
-                    <ul id="player-list"></ul>
+
+                    <div class="nickname-setup" style="display: flex; gap: 10px; margin-bottom: 20px;">
+                        <input type="text" id="in-room-nickname" placeholder="사용할 닉네임 (최대 10자)" maxlength="10">
+                        <button id="btn-update-nickname">변경</button>
+                    </div>
+
+                    <h4 style="text-align: left; margin-bottom: 10px; color: var(--text-muted);">현재 접속자</h4>
+                    <ul id="player-list">
+                    </ul>
+
                     <div class="room-actions">
                         <button id="btn-start-game" class="hidden">게임 시작 (방장 전용)</button>
                         <button id="btn-ready" class="hidden">준비 완료</button>
@@ -74,11 +82,11 @@
                         <h3 id="current-room-title">방 제목</h3>
                         <button id="btn-leave-room">대기실로 나가기</button>
                     </div>
-                    
+
                     <ul id="player-list">
                         <!-- 접속한 유저 목록 영역 -->
                     </ul>
-                    
+
                     <div class="room-actions">
                         <button id="btn-start-game" class="hidden">게임 시작 (방장 전용)</button>
                         <button id="btn-ready" class="hidden">준비 완료</button>
@@ -94,7 +102,7 @@
             <div class="game-header">
                 <div class="timer">남은 시간: <span id="time-left">120</span>초</div>
             </div>
-            
+
             <div class="game-layout">
                 <!-- 좌측: 실시간 순위표 -->
                 <aside id="ranking-board">
@@ -103,7 +111,7 @@
                         <!-- 점수 갱신 영역 -->
                     </ul>
                 </aside>
-                
+
                 <!-- 우측: 게임 코어 -->
                 <main class="canvas-container">
                     <canvas id="game-canvas" width="800" height="600"></canvas>
@@ -117,7 +125,7 @@
         <section id="result-view" class="view-section hidden">
             <div class="content-box">
                 <h2>게임 종료!</h2>
-                
+
                 <div id="final-ranking">
                     <!-- 최종 순위 영역 -->
                 </div>
@@ -146,8 +154,9 @@
 
     <!-- [구조] 스크립트 의존성 로드 -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/network.js"></script> 
-    <script src="js/game.js"></script>    
-    <script src="js/main.js"></script>    
+    <script src="js/network.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/main.js"></script>
 </body>
+
 </html>

@@ -16,7 +16,8 @@ const appState = {
     userId: 'USER_' + Math.random().toString(36).substr(2, 9),
     nickname: '',
     isHost: false,
-    roomId: null
+    roomId: null,
+    isReady: false // 추가: 준비 상태 추적
 };
 
 // ==========================================
@@ -41,7 +42,11 @@ const ui = {
     btnStartGame: document.getElementById('btn-start-game'),
     btnReady: document.getElementById('btn-ready'),
     btnReturnRoom: document.getElementById('btn-return-room'),
-    rematchPopup: document.getElementById('rematch-popup')
+    rematchPopup: document.getElementById('rematch-popup'),
+
+    playerList: document.getElementById('player-list'), // 추가
+    inRoomNickname: document.getElementById('in-room-nickname'), // 추가
+    btnUpdateNickname: document.getElementById('btn-update-nickname'), // 추가
 };
 
 // ==========================================
@@ -112,12 +117,55 @@ function initEvents() {
 
     // --- UI 클릭 이벤트: 시작 및 입장 ---
     document.getElementById('btn-enter-lobby').addEventListener('click', () => {
-        const nickname = document.getElementById('nickname-input').value.trim();
-        if (!nickname) { alert('닉네임을 입력해주세요!'); return; }
-        
-        appState.nickname = nickname;
-        document.getElementById('my-nickname-display').innerText = `내 닉네임: ${nickname}`;
+        if (!appState.nickname) {
+            appState.nickname = 'Guest_' + Math.floor(Math.random() * 1000);
+        }
         switchView('lobby');
+
+        // --- [흐름 추가] B. 방 내부 닉네임 변경 적용 ---
+        ui.btnUpdateNickname.addEventListener('click', () => {
+            const newName = ui.inRoomNickname.value.trim();
+            if (newName) {
+                appState.nickname = newName;
+                // 변경된 닉네임을 서버(Presence)에 재전송
+                networkManager.updatePresenceState(appState.userId, appState.nickname, appState.isReady);
+                ui.inRoomNickname.value = ''; // 입력창 비우기
+                ui.inRoomNickname.placeholder = `현재 닉네임: ${newName}`;
+            }
+        });
+
+        // --- [흐름 추가] C. 준비 완료 상태 토글 적용 ---
+        ui.btnReady.addEventListener('click', () => {
+            appState.isReady = !appState.isReady;
+            ui.btnReady.innerText = appState.isReady ? '준비 취소' : '준비 완료';
+            ui.btnReady.style.backgroundColor = appState.isReady ? 'var(--danger)' : 'var(--primary)';
+            // 준비 상태가 변했으므로 서버(Presence)에 재전송
+            networkManager.updatePresenceState(appState.userId, appState.nickname, appState.isReady);
+        });
+
+        // --- [흐름 추가] D. 접속자 목록 실시간 렌더링 ---
+        networkManager.onPlayerListUpdated = (players) => {
+            ui.playerList.innerHTML = ''; // 기존 목록 초기화
+
+            players.forEach(p => {
+                const li = document.createElement('li');
+                const isMe = p.userId === appState.userId;
+
+                // 상태 텍스트 분기
+                let statusText = p.isReady ? '준비완료' : '대기중';
+                let statusColor = p.isReady ? 'var(--accent)' : 'var(--text-muted)';
+
+                li.innerHTML = `
+                <span style="font-weight: bold; color: ${isMe ? 'var(--primary)' : 'inherit'}">
+                    ${p.nickname} ${isMe ? '(나)' : ''}
+                </span>
+                <span style="color: ${statusColor}; font-size: 0.9em;">
+                    ${statusText}
+                </span>
+            `;
+                ui.playerList.appendChild(li);
+            });
+        };
     });
 
     // --- [흐름 변경] A. 방 만들기 (방장 전용) ---
