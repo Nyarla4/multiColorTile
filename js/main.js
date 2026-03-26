@@ -214,15 +214,23 @@ function initEvents() {
         networkManager.updatePresenceState(getMyPresenceState());
     });
 
-    document.getElementById('btn-leave-room').addEventListener('click', () => {
+    document.getElementById('btn-leave-room').addEventListener('click', async () => {
+        const wasHost = appState.isHost;
+        const roomId = appState.roomId;
+
         appState.isHost = false;
         appState.roomId = null;
-        appState.isReady = false; 
+        appState.isReady = false;
         ui.btnReady.innerText = '준비 완료';
         ui.btnReady.style.backgroundColor = 'var(--primary)';
-        
+
         networkManager.leaveRoom();
         toggleRoomDetail(false);
+
+        // ★ 추가: 방장이 나가면 DB에서 방 삭제 (멤버의 leave presence가 onHostLeft 발화)
+        if (wasHost && roomId) {
+            await networkManager.deleteRoomDB(roomId);
+        }
     });
 
     // [버그 수정] 준비 완료 검증 및 방장 화면 전환 흐름
@@ -281,6 +289,17 @@ function initEvents() {
         switchView('start');
         toggleRoomDetail(false);
     });
+
+    networkManager.onHostLeft = () => {
+        alert('방장이 방을 나갔습니다. 대기실로 돌아갑니다.');
+        appState.isHost = false;
+        appState.roomId = null;
+        appState.isReady = false;
+        ui.btnReady.innerText = '준비 완료';
+        ui.btnReady.style.backgroundColor = 'var(--primary)';
+        networkManager.leaveRoom();
+        toggleRoomDetail(false);
+    };
 }
 
 window.onload = () => {

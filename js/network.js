@@ -1,22 +1,18 @@
-/**
- * js/network.js
- * 역할: [구조] Supabase 통신망 캡슐화.
- */
-
 class NetworkClient {
     constructor() {
         this.supabase = null;
         this.currentChannel = null;
-        this.players = new Map(); 
+        this.players = new Map();
+        this.myState = null; // ★ 추가: 내 상태 보관용
 
         this.lastScoreSentTime = 0;
-        this.scoreThrottleMs = 500; 
+        this.scoreThrottleMs = 500;
 
-        // [구조] 콜백 훅
-        this.onPlayerListUpdated = (players) => {}; 
-        this.onScoreUpdated = (userId, newScore) => {}; 
-        this.onGameStarted = (seed) => {}; 
-        this.onRematchRequested = (newRoomId) => {}; 
+        this.onPlayerListUpdated = (players) => {};
+        this.onScoreUpdated = (userId, newScore) => {};
+        this.onGameStarted = (seed) => {};
+        this.onRematchRequested = (newRoomId) => {};
+        this.onHostLeft = () => {}; // ★ 추가: 방장 퇴장 콜백
     }
 
     init(supabaseUrl, supabaseKey) {
@@ -30,6 +26,8 @@ class NetworkClient {
         if (!this.supabase) return;
         if (this.currentChannel) this.leaveRoom();
 
+        this.myState = initialState; // ★ 추가: 내 상태 저장
+
         const channelName = `room_${roomId}`;
         this.currentChannel = this.supabase.channel(channelName, {
             config: {
@@ -38,33 +36,34 @@ class NetworkClient {
             }
         });
 
-        // ✅ sync: 채널 최초 연결 및 전체 상태 갱신 시
+        // ★ 수정: sync는 전체 초기화 전용. 빈 상태면 내 상태 보정
         this.currentChannel.on('presence', { event: 'sync' }, () => {
             const newState = this.currentChannel.presenceState();
             this.players.clear();
             for (const [key, stateArray] of Object.entries(newState)) {
                 this.players.set(key, stateArray[0]);
             }
-            this.onPlayerListUpdated(Array.from(this.players.values()));
-        });
-
-        // ✅ 버그 2 수정: 타인 입장 감지 (sync가 안 잡히는 케이스 보완)
-        this.currentChannel.on('presence', { event: 'join' }, () => {
-            const newState = this.currentChannel.presenceState();
-            this.players.clear();
-            for (const [key, stateArray] of Object.entries(newState)) {
-                this.players.set(key, stateArray[0]);
+            // sync가 빈 상태로 와도 내 정보는 유지
+            if (this.myState && !this.players.has(this.myState.userId)) {
+                this.players.set(this.myState.userId, this.myState);
             }
             this.onPlayerListUpdated(Array.from(this.players.values()));
         });
 
-        // ✅ leave 이벤트도 처리
-        this.currentChannel.on('presence', { event: 'leave' }, () => {
-            const newState = this.currentChannel.presenceState();
-            this.players.clear();
-            for (const [key, stateArray] of Object.entries(newState)) {
-                this.players.set(key, stateArray[0]);
-            }
+        // ★ 수정: join 페이로드(newPresences)를 직접 사용 — presenceState() 타이밍 문제 회피
+        this.currentChannel.on('presence', { event: 'join' }, ({ newPresences }) => {
+            newPresences.forEach(p => this.players.set(p.userId, p));
+            this.onPlayerListUpdated(Array.from(this.players.values()));
+        });
+
+        // ★ 수정: leave 페이로드(leftPresences)를 직접 사용 + 방장 퇴장 감지
+        this.currentChannel.on('presence', { event: 'leave' }, ({ leftPresences }) => {
+            leftPresences.forEach(p => {
+                this.players.delete(p.userId);
+                if (p.isHost) {
+                    this.onHostLeft(); // ★ 방장이 나갔으면 콜백 호출
+                }
+            });
             this.onPlayerListUpdated(Array.from(this.players.values()));
         });
 
@@ -80,24 +79,21 @@ class NetworkClient {
 
         this.currentChannel.subscribe(async (status) => {
             if (status === 'SUBSCRIBED') {
-                await this.currentChannel.track(initialState);
-
-                // ✅ 버그 1 수정: track 직후 즉시 로컬 렌더링 (sync 대기 없이)
+                // ★ 수정: 로컬 반영을 track보다 먼저 — 화면이 즉시 뜸
                 this.players.set(initialState.userId, initialState);
                 this.onPlayerListUpdated(Array.from(this.players.values()));
+                await this.currentChannel.track(initialState);
+            } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                console.error('채널 연결 실패:', status);
             }
         });
     }
 
-    // [흐름 수정] 내 상태 변경 시 화면 즉각 반영
     async updatePresenceState(newState) {
         if (!this.currentChannel) return;
-        
-        // 1. [로컬 흐름 강제 업데이트] 서버 응답을 기다리지 않고 내 화면부터 즉시 변경
+        this.myState = newState; // ★ 추가: 내 상태 최신화
         this.players.set(newState.userId, newState);
         this.onPlayerListUpdated(Array.from(this.players.values()));
-
-        // 2. [서버 동기화] 변경된 상태 브로드캐스트
         await this.currentChannel.track(newState);
     }
 
@@ -106,6 +102,7 @@ class NetworkClient {
             this.currentChannel.unsubscribe();
             this.currentChannel = null;
             this.players.clear();
+            this.myState = null; // ★ 추가
         }
     }
 
@@ -130,6 +127,12 @@ class NetworkClient {
     async updateRoomStatusPlaying(roomCode) {
         if (!this.supabase) return;
         await this.supabase.from('rooms').update({ status: 'playing' }).eq('room_code', roomCode);
+    }
+
+    // ★ 추가: 방장 퇴장 시 방 삭제
+    async deleteRoomDB(roomCode) {
+        if (!this.supabase || !roomCode) return;
+        await this.supabase.from('rooms').delete().eq('room_code', roomCode);
     }
 
     // --- 브로드캐스트 전송 메서드 ---
