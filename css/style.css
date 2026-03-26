@@ -1,0 +1,169 @@
+/**
+ * css/style.css
+ * 역할: 시각적 구조 정의 및 뷰 전환을 위한 상태 클래스(.hidden) 제공
+ */
+
+:root {
+    --bg-dark: #1a1a2e;
+    --bg-panel: #16213e;
+    --bg-canvas: #0f3460;
+    --text-main: #ffffff;
+    --text-muted: #a8b2d1;
+    --accent: #4ade80;
+    --accent-hover: #22c55e;
+    --primary: #1e90ff;
+    --primary-hover: #3742fa;
+    --danger: #ff4757;
+    --danger-hover: #ff6b81;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+#app-container {
+    width: 100%;
+    max-width: 1100px;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+/* [구조] 핵심 상태 클래스 (흐름 제어용) */
+.hidden { display: none !important; }
+
+.view-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.content-box {
+    background-color: var(--bg-panel);
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    text-align: center;
+    width: 100%;
+    max-width: 400px;
+}
+
+button {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background-color: var(--primary);
+    color: white;
+}
+
+button:hover:not(:disabled) { background-color: var(--primary-hover); transform: translateY(-2px); }
+button:disabled { background-color: #555; color: #888; cursor: not-allowed; }
+
+#btn-exit-game, #btn-leave-room, #btn-popup-exit { background-color: var(--danger); }
+#btn-exit-game:hover:not(:disabled), #btn-leave-room:hover:not(:disabled), #btn-popup-exit:hover:not(:disabled) { background-color: var(--danger-hover); }
+#btn-start-game, #btn-enter-lobby { background-color: var(--accent); color: #111; }
+#btn-start-game:hover:not(:disabled), #btn-enter-lobby:hover:not(:disabled) { background-color: var(--accent-hover); }
+
+input[type="text"] {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid var(--bg-canvas);
+    border-radius: 6px;
+    background-color: var(--bg-dark);
+    color: white;
+    font-size: 16px;
+    margin-bottom: 20px;
+    box-sizing: border-box;
+    outline: none;
+    text-align: center;
+}
+input[type="text"]:focus { border-color: var(--primary); }
+
+.lobby-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    max-width: 800px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid var(--bg-panel);
+    padding-bottom: 10px;
+}
+
+.lobby-content { display: flex; justify-content: center; width: 100%; }
+
+#room-list-area, #room-detail-area {
+    background-color: var(--bg-panel);
+    padding: 30px;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+
+.room-list-header, .room-detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.room-list-header h3, .room-detail-header h3 { margin: 0; }
+
+ul { list-style: none; padding: 0; margin: 0 0 20px 0; max-height: 300px; overflow-y: auto; }
+li { background-color: var(--bg-canvas); padding: 15px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+
+.room-actions { display: flex; justify-content: flex-end; gap: 10px; }
+
+.game-header { display: flex; justify-content: center; font-size: 24px; font-weight: bold; margin-bottom: 20px; color: var(--accent); }
+.game-layout { display: flex; gap: 20px; align-items: flex-start; justify-content: center; width: 100%; }
+
+#ranking-board {
+    background-color: var(--bg-panel);
+    padding: 20px;
+    border-radius: 12px;
+    width: 250px;
+    height: 600px;
+    box-sizing: border-box;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+
+#ranking-board h3 { margin-top: 0; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
+
+.canvas-container { background-color: var(--bg-panel); padding: 10px; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+canvas { background-color: var(--bg-canvas); border-radius: 8px; display: block; cursor: crosshair; }
+
+.result-controls { display: flex; justify-content: center; gap: 15px; margin-top: 20px; }
+
+.modal {
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    background-color: rgba(0, 0, 0, 0.75);
+    display: flex; justify-content: center; align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background-color: var(--bg-panel);
+    padding: 40px;
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+    max-width: 400px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.modal-content p { font-size: 18px; line-height: 1.5; margin-bottom: 25px; }
+.modal-actions { display: flex; justify-content: center; gap: 15px; }

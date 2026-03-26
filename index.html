@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>컬러 타일 멀티플레이</title>
+    <!-- [구조] 시각적 레이아웃 연결 -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="app-container">
+        
+        <!-- ==========================================
+             1. 시작 페이지 (Start View)
+             ========================================== -->
+        <section id="start-view" class="view-section active">
+            <div class="content-box">
+                <h1>컬러 타일 멀티플레이</h1>
+                <p>동체시력과 피지컬의 한계에 도전하세요!</p>
+                <div class="input-group">
+                    <input type="text" id="nickname-input" placeholder="사용할 닉네임을 입력하세요" maxlength="10">
+                    <button id="btn-enter-lobby">게임 입장하기</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             2. 대기실 & 방 목록 (Lobby View)
+             ========================================== -->
+        <section id="lobby-view" class="view-section hidden">
+            <div class="lobby-header">
+                <h2>대기실</h2>
+                <span id="my-nickname-display">내 닉네임: </span>
+            </div>
+            
+            <div class="lobby-content">
+                <!-- 2-A. 방 목록 영역 -->
+                <div id="room-list-area">
+                    <div class="room-list-header">
+                        <h3>개설된 방 목록</h3>
+                        <button id="btn-create-room">새 방 만들기</button>
+                    </div>
+                    <ul id="room-list">
+                        <!-- JS 흐름에 의해 방 목록이 동적으로 추가될 영역 -->
+                    </ul>
+                </div>
+
+                <!-- 2-B. 특정 방 내부 영역 -->
+                <div id="room-detail-area" class="hidden">
+                    <div class="room-detail-header">
+                        <h3 id="current-room-title">방 제목</h3>
+                        <button id="btn-leave-room">대기실로 나가기</button>
+                    </div>
+                    
+                    <ul id="player-list">
+                        <!-- 접속한 유저 목록 영역 -->
+                    </ul>
+                    
+                    <div class="room-actions">
+                        <button id="btn-start-game" class="hidden">게임 시작 (방장 전용)</button>
+                        <button id="btn-ready" class="hidden">준비 완료</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             3. 게임 진행 페이지 (Game View)
+             ========================================== -->
+        <section id="game-view" class="view-section hidden">
+            <div class="game-header">
+                <div class="timer">남은 시간: <span id="time-left">120</span>초</div>
+            </div>
+            
+            <div class="game-layout">
+                <!-- 좌측: 실시간 순위표 -->
+                <aside id="ranking-board">
+                    <h3>실시간 순위</h3>
+                    <ul id="live-ranking">
+                        <!-- 점수 갱신 영역 -->
+                    </ul>
+                </aside>
+                
+                <!-- 우측: 게임 코어 -->
+                <main class="canvas-container">
+                    <canvas id="game-canvas" width="800" height="600"></canvas>
+                </main>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             4. 결과 및 리매치 페이지 (Result View)
+             ========================================== -->
+        <section id="result-view" class="view-section hidden">
+            <div class="content-box">
+                <h2>게임 종료!</h2>
+                
+                <div id="final-ranking">
+                    <!-- 최종 순위 영역 -->
+                </div>
+
+                <div class="result-controls">
+                    <!-- 방장 전용 (흐름에 따라 disabled 속성 제어) -->
+                    <button id="btn-return-room" disabled>방 돌아가기</button>
+                    <!-- 공통 요소 -->
+                    <button id="btn-exit-game">나가기</button>
+                </div>
+            </div>
+
+            <!-- 멤버용 리매치 팝업 -->
+            <div id="rematch-popup" class="modal hidden">
+                <div class="modal-content">
+                    <p>방장이 게임을 다시 준비하고 있습니다.<br>방으로 돌아가시겠습니까?</p>
+                    <div class="modal-actions">
+                        <button id="btn-popup-return">돌아가기</button>
+                        <button id="btn-popup-exit">나가기</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- [구조] 스크립트 의존성 로드 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/network.js"></script> 
+    <script src="js/game.js"></script>    
+    <script src="js/main.js"></script>    
+</body>
+</html>
