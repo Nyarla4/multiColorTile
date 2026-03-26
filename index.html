@@ -75,23 +75,6 @@
                         <button id="btn-ready" class="hidden">준비 완료</button>
                     </div>
                 </div>
-
-                <!-- 2-B. 특정 방 내부 영역 -->
-                <div id="room-detail-area" class="hidden">
-                    <div class="room-detail-header">
-                        <h3 id="current-room-title">방 제목</h3>
-                        <button id="btn-leave-room">대기실로 나가기</button>
-                    </div>
-
-                    <ul id="player-list">
-                        <!-- 접속한 유저 목록 영역 -->
-                    </ul>
-
-                    <div class="room-actions">
-                        <button id="btn-start-game" class="hidden">게임 시작 (방장 전용)</button>
-                        <button id="btn-ready" class="hidden">준비 완료</button>
-                    </div>
-                </div>
             </div>
         </section>
 
@@ -152,8 +135,7 @@
 
     </div>
 
-    <!-- [구조] 스크립트 의존성 로드 -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
     <script src="js/network.js"></script>
     <script src="js/game.js"></script>
     <script src="js/main.js"></script>

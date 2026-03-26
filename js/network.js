@@ -26,7 +26,6 @@ class NetworkClient {
         }
     }
 
-    // [흐름 수정] initialState 객체를 통째로 받아 추적(track)합니다.
     joinRoom(roomId, userId, initialState) {
         if (!this.supabase) return;
         if (this.currentChannel) this.leaveRoom();
@@ -35,11 +34,32 @@ class NetworkClient {
         this.currentChannel = this.supabase.channel(channelName, {
             config: {
                 presence: { key: userId },
-                broadcast: { self: false } // 내가 보낸 브로드캐스트는 내가 받지 않음 (방장 본인 시작 문제의 원인)
+                broadcast: { self: false }
             }
         });
 
+        // ✅ sync: 채널 최초 연결 및 전체 상태 갱신 시
         this.currentChannel.on('presence', { event: 'sync' }, () => {
+            const newState = this.currentChannel.presenceState();
+            this.players.clear();
+            for (const [key, stateArray] of Object.entries(newState)) {
+                this.players.set(key, stateArray[0]);
+            }
+            this.onPlayerListUpdated(Array.from(this.players.values()));
+        });
+
+        // ✅ 버그 2 수정: 타인 입장 감지 (sync가 안 잡히는 케이스 보완)
+        this.currentChannel.on('presence', { event: 'join' }, () => {
+            const newState = this.currentChannel.presenceState();
+            this.players.clear();
+            for (const [key, stateArray] of Object.entries(newState)) {
+                this.players.set(key, stateArray[0]);
+            }
+            this.onPlayerListUpdated(Array.from(this.players.values()));
+        });
+
+        // ✅ leave 이벤트도 처리
+        this.currentChannel.on('presence', { event: 'leave' }, () => {
             const newState = this.currentChannel.presenceState();
             this.players.clear();
             for (const [key, stateArray] of Object.entries(newState)) {
@@ -51,19 +71,20 @@ class NetworkClient {
         this.currentChannel.on('broadcast', { event: 'score_update' }, (payload) => {
             this.onScoreUpdated(payload.payload.userId, payload.payload.score);
         });
-
         this.currentChannel.on('broadcast', { event: 'game_start' }, (payload) => {
             this.onGameStarted(payload.payload.seed);
         });
-
         this.currentChannel.on('broadcast', { event: 'rematch_request' }, (payload) => {
             this.onRematchRequested(payload.payload.newRoomId);
         });
 
         this.currentChannel.subscribe(async (status) => {
             if (status === 'SUBSCRIBED') {
-                // 초기 상태 전송
                 await this.currentChannel.track(initialState);
+
+                // ✅ 버그 1 수정: track 직후 즉시 로컬 렌더링 (sync 대기 없이)
+                this.players.set(initialState.userId, initialState);
+                this.onPlayerListUpdated(Array.from(this.players.values()));
             }
         });
     }
