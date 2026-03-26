@@ -1,7 +1,6 @@
 /**
  * js/network.js
- * 역할: [구조] Supabase 통신망 캡슐화. 외부(main.js)에서 콜백을 주입받아 [흐름]을 위임.
- * 원칙: DOM 조작 코드가 섞여서는 안 됩니다.
+ * 역할: [구조] Supabase 통신망 캡슐화.
  */
 
 class NetworkClient {
@@ -10,11 +9,10 @@ class NetworkClient {
         this.currentChannel = null;
         this.players = new Map(); 
 
-        // [흐름 제어용 구조] 점수 전송 Throttling 기준
         this.lastScoreSentTime = 0;
         this.scoreThrottleMs = 500; 
 
-        // [구조] 외부 주입용 콜백 훅
+        // [구조] 콜백 훅
         this.onPlayerListUpdated = (players) => {}; 
         this.onScoreUpdated = (userId, newScore) => {}; 
         this.onGameStarted = (seed) => {}; 
@@ -25,28 +23,22 @@ class NetworkClient {
         if (window.supabase) {
             this.supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
             console.log("통신 구조 초기화 완료.");
-        } else {
-            console.error("Supabase 라이브러리를 로드하지 못했습니다.");
         }
     }
 
-    // [흐름] 채널 접속 및 이벤트 리스너 등록
-    joinRoom(roomId, nickname, userId) {
+    // [흐름 수정] initialState 객체를 통째로 받아 추적(track)합니다.
+    joinRoom(roomId, userId, initialState) {
         if (!this.supabase) return;
-        
-        if (this.currentChannel) {
-            this.leaveRoom();
-        }
+        if (this.currentChannel) this.leaveRoom();
 
         const channelName = `room_${roomId}`;
         this.currentChannel = this.supabase.channel(channelName, {
             config: {
                 presence: { key: userId },
-                broadcast: { self: false }
+                broadcast: { self: false } // 내가 보낸 브로드캐스트는 내가 받지 않음 (방장 본인 시작 문제의 원인)
             }
         });
 
-        // 수신 흐름 위임
         this.currentChannel.on('presence', { event: 'sync' }, () => {
             const newState = this.currentChannel.presenceState();
             this.players.clear();
@@ -70,14 +62,16 @@ class NetworkClient {
 
         this.currentChannel.subscribe(async (status) => {
             if (status === 'SUBSCRIBED') {
-                await this.currentChannel.track({
-                    userId: userId,
-                    nickname: nickname,
-                    score: 0,
-                    isReady: false
-                });
+                // 초기 상태 전송
+                await this.currentChannel.track(initialState);
             }
         });
+    }
+
+    // [흐름 추가] 내 상태(닉네임, 준비)가 변했을 때 Presence 업데이트
+    async updatePresenceState(newState) {
+        if (!this.currentChannel) return;
+        await this.currentChannel.track(newState);
     }
 
     leaveRoom() {
@@ -88,89 +82,46 @@ class NetworkClient {
         }
     }
 
-    // [흐름] 데이터 브로드캐스트
-    sendScore(userId, score) {
-        if (!this.currentChannel) return;
-        const now = Date.now();
-        if (now - this.lastScoreSentTime < this.scoreThrottleMs) return;
-
-        this.currentChannel.send({
-            type: 'broadcast', event: 'score_update', payload: { userId, score }
-        });
-        this.lastScoreSentTime = now;
-    }
-
-    sendGameStart(seed) {
-        if (!this.currentChannel) return;
-        this.currentChannel.send({
-            type: 'broadcast', event: 'game_start', payload: { seed }
-        });
-    }
-
-    sendRematchRequest(newRoomId) {
-        if (!this.currentChannel) return;
-        this.currentChannel.send({
-            type: 'broadcast', event: 'rematch_request', payload: { newRoomId }
-        });
-    }
-
-    // [흐름] DB에 방 정보 생성 (방장 전용)
+    // --- DB 통신 메서드 ---
     async createRoomDB(roomCode, hostId) {
         if (!this.supabase) return false;
         try {
-            const { error } = await this.supabase
-                .from('rooms')
-                .insert([{ room_code: roomCode, host_id: hostId, status: 'waiting' }]);
-            
-            if (error) {
-                console.error("방 생성 실패:", error);
-                return false;
-            }
-            return true;
-        } catch (err) {
-            return false;
-        }
+            const { error } = await this.supabase.from('rooms').insert([{ room_code: roomCode, host_id: hostId, status: 'waiting' }]);
+            return !error;
+        } catch (err) { return false; }
     }
 
-    // [흐름] DB에서 방 코드 유효성 검증 (참여자 전용)
     async checkRoomDB(roomCode) {
         if (!this.supabase) return false;
         try {
-            const { data, error } = await this.supabase
-                .from('rooms')
-                .select('*')
-                .eq('room_code', roomCode)
-                .single();
-
-            if (error || !data) {
-                console.error("방 찾을 수 없음:", error);
-                return false;
-            }
-            if (data.status !== 'waiting') {
-                console.error("이미 게임이 시작된 방입니다.");
-                return false;
-            }
+            const { data, error } = await this.supabase.from('rooms').select('*').eq('room_code', roomCode).single();
+            if (error || !data || data.status !== 'waiting') return false;
             return true;
-        } catch (err) {
-            return false;
-        }
+        } catch (err) { return false; }
     }
 
-    // [흐름] 게임 시작 시 DB 상태 업데이트 (목록에서 안 보이게)
     async updateRoomStatusPlaying(roomCode) {
         if (!this.supabase) return;
         await this.supabase.from('rooms').update({ status: 'playing' }).eq('room_code', roomCode);
     }
 
-    // [흐름] 닉네임 변경 및 준비 상태 갱신을 위한 Presence 업데이트
-    async updatePresenceState(userId, nickname, isReady, score = 0) {
+    // --- 브로드캐스트 전송 메서드 ---
+    sendScore(userId, score) {
         if (!this.currentChannel) return;
-        await this.currentChannel.track({
-            userId: userId,
-            nickname: nickname,
-            score: score,
-            isReady: isReady
-        });
+        const now = Date.now();
+        if (now - this.lastScoreSentTime < this.scoreThrottleMs) return;
+        this.currentChannel.send({ type: 'broadcast', event: 'score_update', payload: { userId, score } });
+        this.lastScoreSentTime = now;
+    }
+
+    sendGameStart(seed) {
+        if (!this.currentChannel) return;
+        this.currentChannel.send({ type: 'broadcast', event: 'game_start', payload: { seed } });
+    }
+
+    sendRematchRequest(newRoomId) {
+        if (!this.currentChannel) return;
+        this.currentChannel.send({ type: 'broadcast', event: 'rematch_request', payload: { newRoomId } });
     }
 }
 
