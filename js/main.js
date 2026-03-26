@@ -36,6 +36,8 @@ const ui = {
     btnStartGame: document.getElementById('btn-start-game'),
     btnReady: document.getElementById('btn-ready'),
     btnReturnRoom: document.getElementById('btn-return-room'),
+    liveRanking: document.getElementById('live-ranking'),       // 추가
+    timeLeft: document.getElementById('time-left'),             // 추가
     rematchPopup: document.getElementById('rematch-popup')
 };
 
@@ -110,6 +112,22 @@ function initEvents() {
     networkManager.onGameStarted = (seed) => {
         switchView('game');
         gameInstance.initGame(seed);
+
+        // 게임 종료 시 결과 화면으로 전환 + 방장 버튼 제어
+        gameInstance.onGameEnded = (finalScores) => {
+            switchView('result');
+            // 방장만 "방 돌아가기" 버튼 표시
+            if (appState.isHost) {
+                ui.btnReturnRoom.classList.remove('hidden');
+            } else {
+                ui.btnReturnRoom.classList.add('hidden');
+            }
+            // 최종 순위 렌더링
+            const sorted = finalScores.sort((a, b) => b.score - a.score);
+            document.getElementById('final-ranking').innerHTML = sorted
+                .map((p, i) => `<p>${i + 1}위 — ${p.nickname || '(닉네임 없음)'} : ${p.score}점</p>`)
+                .join('');
+        };
     };
 
     networkManager.onRematchRequested = (newRoomId) => {
@@ -121,6 +139,19 @@ function initEvents() {
     gameInstance.onScoreChanged = (newScore) => {
         networkManager.sendScore(appState.userId, newScore);
     };
+
+    networkManager.onScoreUpdated = (userId, newScore) => {
+    // 로컬 players Map 점수 갱신
+    if (networkManager.players.has(userId)) {
+        networkManager.players.get(userId).score = newScore;
+    }
+    // 실시간 순위판 렌더링
+    const sorted = Array.from(networkManager.players.values())
+        .sort((a, b) => b.score - a.score);
+    ui.liveRanking.innerHTML = sorted
+        .map((p, i) => `<li>${i + 1}. ${p.nickname || '(없음)'} — ${p.score}점</li>`)
+        .join('');
+};
 
     // --- UI 클릭 이벤트 ---
     document.getElementById('btn-enter-lobby').addEventListener('click', () => {
@@ -217,8 +248,16 @@ function initEvents() {
         networkManager.updateRoomStatusPlaying(appState.roomId); // 3. DB 상태 변경 (난입 방지)
     });
 
-    ui.btnReturnRoom.addEventListener('click', () => {
-        networkManager.sendRematchRequest('NEW_ROOM_ID'); 
+    ui.btnReturnRoom.addEventListener('click', async () => {
+        // 새 방 코드 생성 후 DB에 등록, 그 코드를 멤버에게 전달
+        const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+        const success = await networkManager.createRoomDB(newCode, appState.userId);
+        if (!success) { alert('방 생성에 실패했습니다.'); return; }
+
+        appState.roomId = newCode;
+        appState.isReady = true;
+        networkManager.joinRoom(appState.roomId, appState.userId, getMyPresenceState());
+        networkManager.sendRematchRequest(newCode);  // 실제 방 코드 전달
         switchView('lobby');
         toggleRoomDetail(true);
     });

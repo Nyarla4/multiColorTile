@@ -36,15 +36,18 @@ class GameManager {
         
         // 외부에서 주입할 콜백
         this.onScoreChanged = (newScore) => {};
+        this.onGameEnded = (finalScores) => {};
     }
 
     initGame(seed) {
         this.state.score = 0;
         this.state.timeLeft = 120;
         this.state.isPlaying = true;
-        
-        // TODO: 향후 공통 시드 기반 PRNG 연동
-        this.state.grid = Array(GAME_CONFIG.ROWS).fill(null).map(() => 
+
+        // 기존 타이머 있으면 초기화
+        if (this.timerInterval) clearInterval(this.timerInterval);
+
+        this.state.grid = Array(GAME_CONFIG.ROWS).fill(null).map(() =>
             Array(GAME_CONFIG.COLS).fill(null).map(() => {
                 if (Math.random() < 0.6) {
                     return GAME_CONFIG.COLORS[Math.floor(Math.random() * GAME_CONFIG.COLORS.length)];
@@ -53,6 +56,23 @@ class GameManager {
             })
         );
         this.render();
+
+        // 타이머 시작
+        const timeEl = document.getElementById('time-left');
+        this.timerInterval = setInterval(() => {
+            this.state.timeLeft--;
+            if (timeEl) timeEl.textContent = this.state.timeLeft;
+
+            if (this.state.timeLeft <= 0) {
+                clearInterval(this.timerInterval);
+                this.state.isPlaying = false;
+                // 결과 화면으로 콜백 호출
+                if (this.onGameEnded) {
+                    const finalScores = Array.from(networkManager.players.values());
+                    this.onGameEnded(finalScores);
+                }
+            }
+        }, 1000);
     }
 
     // 핵심 룰 검증
