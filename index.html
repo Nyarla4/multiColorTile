@@ -5,35 +5,45 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>컬러 타일 멀티플레이</title>
-    <!-- [구조] 시각적 레이아웃 연결 -->
     <link rel="stylesheet" href="css/style.css">
 </head>
 
 <body>
     <div id="app-container">
 
-        <!-- ==========================================
-             1. 시작 페이지 (Start View)
-             ========================================== -->
-        <section id="start-view" class="view-section active">
+        <!-- 시작 페이지 — 더 이상 사용하지 않음, hidden 처리 -->
+        <section id="start-view" class="view-section hidden">
             <div class="content-box">
                 <h1>컬러 타일 멀티플레이</h1>
                 <button id="btn-enter-lobby" class="btn-large">로비 입장하기</button>
             </div>
         </section>
 
-        <!-- ==========================================
-             2. 대기실 & 방 목록 (Lobby View)
-             ========================================== -->
-        <section id="lobby-view" class="view-section hidden">
+        <!-- 대기실 — 시작부터 바로 표시 -->
+        <section id="lobby-view" class="view-section active">
             <div class="lobby-header">
                 <h2>대기실</h2>
                 <span id="my-nickname-display">내 닉네임: </span>
             </div>
 
             <div class="lobby-content">
-                <!-- 2-A. 방 생성 및 입장 영역 (기존 room-list-area 대체) -->
                 <div id="room-action-area">
+
+                    <!-- 닉네임 설정 섹션 -->
+                    <div class="room-create-section">
+                        <h3>내 닉네임</h3>
+                        <div class="input-group" style="margin-bottom: 0;">
+                            <input type="text" id="start-nickname-input"
+                                placeholder="닉네임 입력 (비우면 Guest 자동 배정)" maxlength="10"
+                                style="margin-bottom: 0;">
+                            <button id="btn-set-nickname">설정</button>
+                        </div>
+                        <p id="current-nickname-display"
+                            style="color: var(--accent); margin: 8px 0 0; font-size: 14px; text-align: left;"></p>
+                    </div>
+
+                    <div class="divider"></div>
+
                     <div class="room-create-section">
                         <h3>새로운 게임 시작</h3>
                         <button id="btn-create-room" class="btn-large">방 만들기</button>
@@ -44,31 +54,30 @@
                     <div class="room-join-section">
                         <h3>방 코드로 참여</h3>
                         <div class="input-group">
-                            <!-- text-transform: uppercase로 대문자만 보이게 시각적 구조화 -->
-                            <input type="text" id="room-code-input" placeholder="방 코드 6자리 (예: A1B2C3)" maxlength="6"
-                                style="text-transform: uppercase;">
+                            <input type="text" id="room-code-input"
+                                placeholder="방 코드 6자리 (예: A1B2C3)" maxlength="6"
+                                style="text-transform: uppercase; margin-bottom: 0;">
                             <button id="btn-join-room">입장하기</button>
                         </div>
                     </div>
                 </div>
 
-                <!-- 2-B. 특정 방 내부 영역 (기존 room-detail-area 수정) -->
+                <!-- 방 내부 영역 -->
                 <div id="room-detail-area" class="hidden">
                     <div class="room-detail-header">
-                        <!-- 방 제목 대신 코드를 보여주도록 수정 -->
                         <h3 id="current-room-title">방 코드: <span id="display-room-code"
                                 style="color: var(--accent);"></span></h3>
                         <button id="btn-leave-room">나가기</button>
                     </div>
 
                     <div class="nickname-setup" style="display: flex; gap: 10px; margin-bottom: 20px;">
-                        <input type="text" id="in-room-nickname" placeholder="사용할 닉네임 (최대 10자)" maxlength="10">
+                        <input type="text" id="in-room-nickname"
+                            placeholder="사용할 닉네임 (최대 10자)" maxlength="10">
                         <button id="btn-update-nickname">변경</button>
                     </div>
 
                     <h4 style="text-align: left; margin-bottom: 10px; color: var(--text-muted);">현재 접속자</h4>
-                    <ul id="player-list">
-                    </ul>
+                    <ul id="player-list"></ul>
 
                     <div class="room-actions">
                         <button id="btn-start-game" class="hidden">게임 시작 (방장 전용)</button>
@@ -78,45 +87,33 @@
             </div>
         </section>
 
-        <!-- ==========================================
-             3. 게임 진행 페이지 (Game View)
-             ========================================== -->
+        <!-- 게임 진행 페이지 -->
         <section id="game-view" class="view-section hidden">
             <div class="game-header">
                 <div class="timer">남은 시간: <span id="time-left">120</span>초</div>
             </div>
 
             <div class="game-layout">
-                <!-- 좌측: 실시간 순위표 -->
                 <aside id="ranking-board">
                     <h3>실시간 순위</h3>
-                    <ul id="live-ranking">
-                        <!-- 점수 갱신 영역 -->
-                    </ul>
+                    <ul id="live-ranking"></ul>
                 </aside>
 
-                <!-- 우측: 게임 코어 -->
                 <main class="canvas-container">
                     <canvas id="game-canvas" width="800" height="600"></canvas>
                 </main>
             </div>
         </section>
 
-        <!-- ==========================================
-             4. 결과 및 리매치 페이지 (Result View)
-             ========================================== -->
+        <!-- 결과 페이지 -->
         <section id="result-view" class="view-section hidden">
             <div class="content-box">
                 <h2>게임 종료!</h2>
 
-                <div id="final-ranking">
-                    <!-- 최종 순위 영역 -->
-                </div>
+                <div id="final-ranking"></div>
 
                 <div class="result-controls">
-                    <!-- 방장 전용 (흐름에 따라 disabled 속성 제어) -->
                     <button id="btn-return-room" class="hidden">방 돌아가기</button>
-                    <!-- 공통 요소 -->
                     <button id="btn-exit-game">나가기</button>
                 </div>
             </div>

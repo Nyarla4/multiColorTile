@@ -15,9 +15,9 @@ const GAME_CONFIG = {
 // [구조] 상태 데이터
 class GameState {
     constructor() {
-        this.grid = [];      
-        this.score = 0;      
-        this.timeLeft = 120; 
+        this.grid = [];
+        this.score = 0;
+        this.timeLeft = 120;
         this.isPlaying = false;
     }
 }
@@ -28,12 +28,12 @@ class GameManager {
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext('2d');
         this.state = new GameState();
-        
+
         this.canvas.width = GAME_CONFIG.COLS * (GAME_CONFIG.TILE_SIZE + GAME_CONFIG.GAP) + GAME_CONFIG.GAP;
         this.canvas.height = GAME_CONFIG.ROWS * (GAME_CONFIG.TILE_SIZE + GAME_CONFIG.GAP) + GAME_CONFIG.GAP;
 
         this.canvas.addEventListener('mousedown', (e) => this.handleCanvasClick(e));
-        
+
         // 외부에서 주입할 콜백
         this.onScoreChanged = (newScore) => {};
         this.onGameEnded = (finalScores) => {};
@@ -47,10 +47,21 @@ class GameManager {
         // 기존 타이머 있으면 초기화
         if (this.timerInterval) clearInterval(this.timerInterval);
 
+        // seed 기반 결정론적 PRNG (xorshift32)
+        // 모든 클라이언트가 동일한 seed를 받으면 완전히 동일한 그리드 생성
+        let s = Math.floor(seed * 4294967296) >>> 0;
+        if (s === 0) s = 1; // xorshift는 0이 고정점이므로 방어
+        const rand = () => {
+            s ^= s << 13;
+            s ^= s >>> 17;
+            s ^= s << 5;
+            return (s >>> 0) / 4294967296;
+        };
+
         this.state.grid = Array(GAME_CONFIG.ROWS).fill(null).map(() =>
             Array(GAME_CONFIG.COLS).fill(null).map(() => {
-                if (Math.random() < 0.6) {
-                    return GAME_CONFIG.COLORS[Math.floor(Math.random() * GAME_CONFIG.COLORS.length)];
+                if (rand() < 0.6) {
+                    return GAME_CONFIG.COLORS[Math.floor(rand() * GAME_CONFIG.COLORS.length)];
                 }
                 return null;
             })
@@ -66,7 +77,6 @@ class GameManager {
             if (this.state.timeLeft <= 0) {
                 clearInterval(this.timerInterval);
                 this.state.isPlaying = false;
-                // 결과 화면으로 콜백 호출
                 if (this.onGameEnded) {
                     const finalScores = Array.from(networkManager.players.values());
                     this.onGameEnded(finalScores);
@@ -104,13 +114,13 @@ class GameManager {
 
         if (tilesToRemove.length > 0) {
             tilesToRemove.forEach(t => { this.state.grid[t.r][t.c] = null; });
-            
+
             let points = tilesToRemove.length * 10;
-            if (tilesToRemove.length >= 3) points += 20; 
-            
+            if (tilesToRemove.length >= 3) points += 20;
+
             this.state.score += points;
             this.render();
-            
+
             // 흐름 위임
             this.onScoreChanged(this.state.score);
         }
@@ -126,7 +136,7 @@ class GameManager {
                 if (color) {
                     const x = GAME_CONFIG.GAP + c * (GAME_CONFIG.TILE_SIZE + GAME_CONFIG.GAP);
                     const y = GAME_CONFIG.GAP + r * (GAME_CONFIG.TILE_SIZE + GAME_CONFIG.GAP);
-                    
+
                     this.ctx.fillStyle = color;
                     this.ctx.beginPath();
                     this.ctx.roundRect(x, y, GAME_CONFIG.TILE_SIZE, GAME_CONFIG.TILE_SIZE, 6);

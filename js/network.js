@@ -3,7 +3,7 @@ class NetworkClient {
         this.supabase = null;
         this.currentChannel = null;
         this.players = new Map();
-        this.myState = null; // ★ 추가: 내 상태 보관용
+        this.myState = null;
 
         this.lastScoreSentTime = 0;
         this.scoreThrottleMs = 500;
@@ -12,7 +12,7 @@ class NetworkClient {
         this.onScoreUpdated = (userId, newScore) => {};
         this.onGameStarted = (seed) => {};
         this.onRematchRequested = (newRoomId) => {};
-        this.onHostLeft = () => {}; // ★ 추가: 방장 퇴장 콜백
+        this.onHostLeft = () => {};
     }
 
     init(supabaseUrl, supabaseKey) {
@@ -26,45 +26,38 @@ class NetworkClient {
         if (!this.supabase) return;
         if (this.currentChannel) this.leaveRoom();
 
-        this.myState = initialState; // ★ 추가: 내 상태 저장
+        this.myState = initialState;
 
         const channelName = `room_${roomId}`;
+        // presence key 제거 — payload의 userId로 직접 식별
         this.currentChannel = this.supabase.channel(channelName, {
-            config: {
-                presence: { key: userId },
-                broadcast: { self: false }
-            }
+            config: { broadcast: { self: false } }
         });
 
-        // ★ 수정: sync는 전체 초기화 전용. 빈 상태면 내 상태 보정
-        this.currentChannel.on('presence', { event: 'sync' }, () => {
-            const newState = this.currentChannel.presenceState();
-            this.players.clear();
-            for (const [key, stateArray] of Object.entries(newState)) {
-                this.players.set(key, stateArray[0]);
+        // presenceState()를 단일 진실의 원천으로 사용하는 헬퍼
+        const refresh = () => {
+            const state = this.currentChannel.presenceState();
+            const newMap = new Map();
+            for (const [, presences] of Object.entries(state)) {
+                const p = presences[0];
+                if (p?.userId) newMap.set(p.userId, p);
             }
-            // sync가 빈 상태로 와도 내 정보는 유지
-            if (this.myState && !this.players.has(this.myState.userId)) {
-                this.players.set(this.myState.userId, this.myState);
+            // 서버 반영 전 내 상태가 빠졌을 때 보정
+            if (this.myState && !newMap.has(this.myState.userId)) {
+                newMap.set(this.myState.userId, this.myState);
             }
+            this.players = newMap;
             this.onPlayerListUpdated(Array.from(this.players.values()));
-        });
+        };
 
-        // ★ 수정: join 페이로드(newPresences)를 직접 사용 — presenceState() 타이밍 문제 회피
-        this.currentChannel.on('presence', { event: 'join' }, ({ newPresences }) => {
-            newPresences.forEach(p => this.players.set(p.userId, p));
-            this.onPlayerListUpdated(Array.from(this.players.values()));
-        });
+        this.currentChannel.on('presence', { event: 'sync' }, refresh);
+        this.currentChannel.on('presence', { event: 'join' }, refresh);
 
-        // ★ 수정: leave 페이로드(leftPresences)를 직접 사용 + 방장 퇴장 감지
+        // leave: refresh 전에 방장 여부 체크 (refresh 후엔 이미 제거됨)
         this.currentChannel.on('presence', { event: 'leave' }, ({ leftPresences }) => {
-            leftPresences.forEach(p => {
-                this.players.delete(p.userId);
-                if (p.isHost) {
-                    this.onHostLeft(); // ★ 방장이 나갔으면 콜백 호출
-                }
-            });
-            this.onPlayerListUpdated(Array.from(this.players.values()));
+            const hostLeft = leftPresences.some(p => p.isHost === true);
+            refresh();
+            if (hostLeft) this.onHostLeft();
         });
 
         this.currentChannel.on('broadcast', { event: 'score_update' }, (payload) => {
@@ -76,13 +69,20 @@ class NetworkClient {
         this.currentChannel.on('broadcast', { event: 'rematch_request' }, (payload) => {
             this.onRematchRequested(payload.payload.newRoomId);
         });
+        // presence leave 신뢰성 보완: 방장이 직접 보내는 즉시 감지 신호
+        this.currentChannel.on('broadcast', { event: 'host_leaving' }, () => {
+            this.onHostLeft();
+        });
 
         this.currentChannel.subscribe(async (status) => {
             if (status === 'SUBSCRIBED') {
-                // ★ 수정: 로컬 반영을 track보다 먼저 — 화면이 즉시 뜸
+                // 즉시 로컬 렌더 후 track 호출
                 this.players.set(initialState.userId, initialState);
                 this.onPlayerListUpdated(Array.from(this.players.values()));
-                await this.currentChannel.track(initialState);
+                const result = await this.currentChannel.track(initialState);
+                if (result !== 'ok') {
+                    console.error('Presence track 실패:', result);
+                }
             } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
                 console.error('채널 연결 실패:', status);
             }
@@ -91,7 +91,7 @@ class NetworkClient {
 
     async updatePresenceState(newState) {
         if (!this.currentChannel) return;
-        this.myState = newState; // ★ 추가: 내 상태 최신화
+        this.myState = newState;
         this.players.set(newState.userId, newState);
         this.onPlayerListUpdated(Array.from(this.players.values()));
         await this.currentChannel.track(newState);
@@ -99,10 +99,11 @@ class NetworkClient {
 
     leaveRoom() {
         if (this.currentChannel) {
+            this.currentChannel.untrack();     // presence 즉시 제거
             this.currentChannel.unsubscribe();
             this.currentChannel = null;
             this.players.clear();
-            this.myState = null; // ★ 추가
+            this.myState = null;
         }
     }
 
@@ -129,13 +130,18 @@ class NetworkClient {
         await this.supabase.from('rooms').update({ status: 'playing' }).eq('room_code', roomCode);
     }
 
-    // ★ 추가: 방장 퇴장 시 방 삭제
     async deleteRoomDB(roomCode) {
         if (!this.supabase || !roomCode) return;
         await this.supabase.from('rooms').delete().eq('room_code', roomCode);
     }
 
     // --- 브로드캐스트 전송 메서드 ---
+    // 채널이 살아있는 동안 먼저 호출해야 멤버들이 즉시 수신
+    sendHostLeaving() {
+        if (!this.currentChannel) return;
+        this.currentChannel.send({ type: 'broadcast', event: 'host_leaving', payload: {} });
+    }
+
     sendScore(userId, score) {
         if (!this.currentChannel) return;
         const now = Date.now();
