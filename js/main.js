@@ -126,24 +126,18 @@ class AppController {
     handleReadyToggle() {
         if (this.roomManager.isHost) return; 
         
-        // 1. 현재 로컬 명단에서 내 데이터 찾기 (상태 파악용)
         const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
         if (!me) return; 
         
-        // 2. 원하는 새로운 준비 상태 결정
         const desiredReadyState = !me.isReady;
         console.log(`[Lobby] 준비 상태 변경 요청: ${me.isReady} -> ${desiredReadyState}`);
         
-        // ❌ [삭제] 로컬 데이터를 직접 수정하거나 renderPlayers를 호출하지 않습니다!
-        // me.isReady = desiredReadyState;
-        // this.ui.renderPlayers(...);
-        
-        // 3. [구조적 변경] Supabase에 내 새로운 상태를 덮어씌워달라고 '요청'만 보냅니다.
-        // Supabase가 이를 처리하고 다시 전파(onSyncState)하면 그때 화면이 바뀝니다.
+        // [흐름 추가] 타임스탬프를 함께 보내 서버가 완전히 새로운 데이터로 인식하게 강제합니다.
         this.network.updateMyState({
             id: this.roomManager.myId,
             isHost: false,
-            isReady: desiredReadyState
+            isReady: desiredReadyState,
+            updatedAt: Date.now() 
         });
     }
 

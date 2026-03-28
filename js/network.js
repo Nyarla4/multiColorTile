@@ -59,34 +59,32 @@ export class RoomManager {
     }
 }
 
+// network.js 의 NetworkClient 클래스
+
 export class NetworkClient {
     constructor() {
         this.channel = null;
-        this.onSyncState = null; 
+        this.onSyncState = null;
     }
 
     connectToRoom(roomCode, myData) {
-        // [핵심 변경점] 랜덤 ID 대신 내 ID를 고유 키(key)로 강제 지정합니다.
-        // 이렇게 하면 중복 접속이나 유령 플레이어 현상을 완벽하게 방지할 수 있습니다.
-        this.channel = supabase.channel('room_' + roomCode, {
-            config: {
-                presence: {
-                    key: myData.id, 
-                },
-            },
+        this.channel = window.supabase.channel('room_' + roomCode, {
+            config: { presence: { key: myData.id } },
         });
 
         this.channel.on('presence', { event: 'sync' }, () => {
             const state = this.channel.presenceState();
             const currentPlayers = [];
-            
-            // state 구조가 { 'Player_123': [{...}], 'Player_456': [{...}] } 형태로 바뀝니다.
+
             for (const key in state) {
-                if (state[key].length > 0) {
-                    currentPlayers.push(state[key][0]); // 항상 최신 상태만 추출
+                const presenceArray = state[key];
+                if (presenceArray.length > 0) {
+                    // [핵심 해결] 유령이 섞여 있더라도, 무조건 배열의 맨 마지막(가장 최신) 상태를 가져옵니다!
+                    const latestData = presenceArray[presenceArray.length - 1];
+                    currentPlayers.push(latestData);
                 }
             }
-            
+
             if (this.onSyncState) this.onSyncState(currentPlayers);
         });
 
@@ -106,8 +104,12 @@ export class NetworkClient {
 
     async disconnect() {
         if (this.channel) {
-            await this.channel.untrack(); // 서버에 즉시 내 흔적 삭제 요청
-            await supabase.removeChannel(this.channel);
+            await this.channel.untrack(); // 흔적 지우기 요청
+
+            // [핵심 해결] 지우기 요청이 서버에 닿을 수 있도록 0.2초만 기다려줍니다 (유령 방지)
+            await new Promise(resolve => setTimeout(resolve, 200));
+
+            await window.supabase.removeChannel(this.channel);
             this.channel = null;
         }
     }
