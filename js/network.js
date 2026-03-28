@@ -3,8 +3,7 @@ export class RoomManager {
     constructor() {
         this.currentRoomCode = null;
         this.isHost = false;
-        // 나 자신의 임시 ID 부여
-        this.myId = 'Player_' + Math.floor(Math.random() * 1000); 
+        this.myId = 'Player_' + Math.floor(Math.random() * 1000);
         this.players = []; // 접속자 목록 배열
     }
 
@@ -22,13 +21,20 @@ export class RoomManager {
         this.currentRoomCode = code;
         this.isHost = hostStatus;
     }
-    
+
     addPlayer(id, isHost) {
-        this.players.push({ id: id, isHost: isHost, isReady: false });
+        if (!this.players.find(p => p.id === id)) {
+            this.players.push({ id: id, isHost: isHost, isReady: false });
+        }
     }
 
     removePlayer(id) {
         this.players = this.players.filter(p => p.id !== id);
+    }
+
+    setReadyState(id, isReady) {
+        const player = this.players.find(p => p.id === id);
+        if (player) player.isReady = isReady;
     }
 
     toggleReady(id) {
@@ -48,20 +54,54 @@ export class RoomManager {
 // [구조] 통신 클라이언트 (Supabase 래퍼 예정)
 export class NetworkClient {
     constructor() {
-        // 향후 Supabase 클라이언트 객체가 주입될 위치
-        this.isConnected = false;
+        this.channel = null;
+        this.onPlayerJoined = null;
+        this.onPlayerReadyChanged = null;
+        this.onSyncRequest = null;
     }
 
-    // [흐름] Supabase Realtime 채널 생성/접속 등 통신 흐름
-    connectToRoom(roomCode) {
-        console.log(`[Network] ${roomCode} 방 채널에 연결을 시도합니다...`);
-        this.isConnected = true;
-        // Supabase 통신 로직 추가 예정
+    connectToRoom(roomCode, myData) {
+        this.channel = new BroadcastChannel('room_' + roomCode);
+        console.log(`[Network] ${roomCode} 채널 접속 완료`);
+
+        // 메시지 수신 흐름 (Router 역할)
+        this.channel.onmessage = (event) => {
+            const msg = event.data;
+            switch (msg.type) {
+                case 'JOIN':
+                    if (this.onPlayerJoined) this.onPlayerJoined(msg.payload);
+                    break;
+                case 'READY':
+                    if (this.onPlayerReadyChanged) this.onPlayerReadyChanged(msg.payload);
+                    break;
+                case 'SYNC_REQUEST':
+                    if (this.onSyncRequest) this.onSyncRequest();
+                    break;
+            }
+        };
+
+        // 접속하자마자 내 정보를 방에 뿌림
+        this.broadcastJoin(myData);
+    }
+
+    // [흐름] 데이터 발신 메서드들
+    broadcastJoin(playerData) {
+        if (this.channel) this.channel.postMessage({ type: 'JOIN', payload: playerData });
+    }
+
+    broadcastReady(id, isReady) {
+        if (this.channel) this.channel.postMessage({ type: 'READY', payload: { id, isReady } });
+    }
+
+    // 방장이 새로 들어온 사람에게 현재 방의 모든 플레이어 목록을 쏴줄 때 사용
+    requestSync() {
+        if (this.channel) this.channel.postMessage({ type: 'SYNC_REQUEST' });
     }
 
     disconnect() {
-        console.log(`[Network] 채널 연결을 해제합니다.`);
-        this.isConnected = false;
-        // Supabase 통신 해제 로직 추가 예정
+        if (this.channel) {
+            this.channel.close();
+            this.channel = null;
+        }
     }
 }

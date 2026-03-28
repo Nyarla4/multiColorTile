@@ -61,12 +61,12 @@ class LobbyUI {
 // [구조] 중앙 애플리케이션 컨트롤러
 class AppController {
     constructor() {
-        // 실행과 관계없이 모든 구조적 의존성을 여기서 결정하고 주입합니다.
-        this.ui = new LobbyUI();
+       this.ui = new LobbyUI();
         this.roomManager = new RoomManager();
         this.network = new NetworkClient();
-
+        
         this.bindEvents();
+        this.setupNetworkCallbacks();
     }
 
     // [흐름] 이벤트 바인딩
@@ -78,14 +78,41 @@ class AppController {
         document.getElementById('btn-start').addEventListener('click', () => this.handleGameStart());
     }
 
+    setupNetworkCallbacks() {
+        // 1. 누군가 방에 들어왔을 때
+        this.network.onPlayerJoined = (playerData) => {
+            this.roomManager.addPlayer(playerData.id, playerData.isHost);
+            this.ui.renderPlayers(this.roomManager.players, this.roomManager.myId);
+
+            // 만약 내가 방장이라면, 새로 들어온 사람에게 내 정보도 알려줘야 함
+            if (this.roomManager.isHost) {
+                this.network.broadcastJoin({ id: this.roomManager.myId, isHost: true });
+            }
+        };
+
+        // 2. 누군가 준비 버튼을 눌렀을 때
+        this.network.onPlayerReadyChanged = (data) => {
+            this.roomManager.setReadyState(data.id, data.isReady);
+            this.ui.renderPlayers(this.roomManager.players, this.roomManager.myId);
+        };
+
+        // 3. 누군가 동기화를 요청했을 때 (내가 방장이면 전체 목록을 다시 뿌림)
+        this.network.onSyncRequest = () => {
+            if (this.roomManager.isHost) {
+                this.network.broadcastJoin({ id: this.roomManager.myId, isHost: true });
+            }
+        };
+    }
+
     // [흐름] 방 생성 로직
     handleCreateRoom() {
         const newCode = this.roomManager.generateRoomCode();
         this.roomManager.setRoomState(newCode, true);
-
-        // 내 데이터를 방장으로 추가
         this.roomManager.addPlayer(this.roomManager.myId, true);
-
+        
+        // 내 데이터를 들고 채널 접속
+        this.network.connectToRoom(newCode, { id: this.roomManager.myId, isHost: true });
+        
         this.ui.setupButtons(true);
         this.ui.renderPlayers(this.roomManager.players, this.roomManager.myId);
         this.ui.updateRoomView(this.roomManager.currentRoomCode, true);
@@ -98,9 +125,13 @@ class AppController {
         if (code.length !== 4) { alert('4자리 방 코드를 정확히 입력해주세요.'); return; }
 
         this.roomManager.setRoomState(code, false);
-
-        // 내 데이터를 참가자로 추가 (추후 네트워크를 통해 방장 정보도 받아와야 함)
         this.roomManager.addPlayer(this.roomManager.myId, false);
+        
+        // 내 데이터를 들고 채널 접속
+        this.network.connectToRoom(code, { id: this.roomManager.myId, isHost: false });
+        
+        // 방장에게 방 상태 동기화 요청
+        this.network.requestSync();
 
         this.ui.setupButtons(false);
         this.ui.renderPlayers(this.roomManager.players, this.roomManager.myId);
@@ -109,12 +140,14 @@ class AppController {
     }
 
     handleReadyToggle() {
-        if (this.roomManager.isHost) return; // 방장은 준비가 필요 없음
-
+        if (this.roomManager.isHost) return; 
+        
         this.roomManager.toggleReady(this.roomManager.myId);
-
-        // 추후 여기서 네트워크를 통해 "나 준비(혹은 취소)했어" 라고 브로드캐스트
-
+        
+        // [흐름 추가] 변경된 내 준비 상태를 방 전체에 브로드캐스트
+        const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
+        this.network.broadcastReady(me.id, me.isReady);
+        
         this.ui.renderPlayers(this.roomManager.players, this.roomManager.myId);
     }
 
