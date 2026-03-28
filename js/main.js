@@ -374,7 +374,6 @@ class AppController {
         }
     }
 
-    // 🚀 [흐름] 타일 클릭 시 점수 획득 및 동기화
     handleCellClick(index) {
         if (!this.board || !this.isGameRunning) return;
 
@@ -383,13 +382,12 @@ class AppController {
         if (targetTiles.length > 0) {
             targetTiles.forEach(idx => {
                 this.board.grid[idx] = null;
-                this.ui.updateCell(idx, null); // ← 변경: 해당 셀만 업데이트
+                this.ui.updateCell(idx, null);
             });
 
             this.scoreTimer.addScore(targetTiles.length);
             this.ui.updateStats(this.scoreTimer.time, this.scoreTimer.score);
-            
-            // 🚀 [흐름 기록] 내 클릭 행동을 저장
+
             this.myActionHistory.push({
                 timeLeft: this.scoreTimer.time,
                 indexClicked: index,
@@ -398,7 +396,13 @@ class AppController {
 
             const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
             if (me) {
-                this.network.updateMyState({ ...me, score: this.scoreTimer.score, updatedAt: Date.now() });
+                // ← history를 함께 실어서 전송
+                this.network.updateMyState({
+                    ...me,
+                    score: this.scoreTimer.score,
+                    history: this.myActionHistory,
+                    updatedAt: Date.now()
+                });
             }
         }
     }
@@ -468,11 +472,9 @@ class AppController {
         }, 200); // 0.2초 배속 재생
     }
 
-    // 🚀 [흐름 추가] 결과 확인 후 로비로 돌아가기
     handleBackToRoom() {
         if (this.replayInterval) clearInterval(this.replayInterval);
-        
-        // 내 정보를 대기실(초기) 상태로 초기화
+
         const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
         if (me) {
             this.network.updateMyState({ ...me, score: 0, history: [], isReady: false, updatedAt: Date.now() });
@@ -480,9 +482,8 @@ class AppController {
 
         this.ui.switchScreen('screen-room');
         this.ui.updateRoomView(this.roomManager.currentRoomCode, this.roomManager.isHost);
-        if (this.roomManager.isHost) {
-            this.ui.setupButtons(true);
-        }
+        this.ui.setupButtons(this.roomManager.isHost);                              // ← 방장/게스트 모두 처리
+        this.ui.renderPlayers(this.roomManager.players, this.roomManager.myId);     // ← 명시적 갱신 추가
     }
 
     // [흐름] 방 퇴장 로직
