@@ -120,12 +120,15 @@ class LobbyUI {
     // 🚀 [흐름] 점수 기반으로 내림차순 정렬하여 순위표 렌더링
     renderLeaderboard(players) {
         const sorted = [...players].sort((a, b) => (b.score || 0) - (a.score || 0));
-        this.leaderboard.innerHTML = '';
+        
+        // 🚀 랭킹바 내부 텍스트 초기화 (강력하게 초기화)
+        this.leaderboard.innerHTML = '<strong>🏆 실시간 순위</strong>'; 
+        
         sorted.forEach((p, index) => {
             const row = document.createElement('div');
             const displayName = p.nickname || p.id;
-            row.innerText = `${index === 0 ? '🥇' : index+1+'.'} ${displayName} (${p.score || 0})`;
-            row.style.whiteSpace = 'nowrap';
+            // 🚀 JS는 순수 텍스트만 넣음. CSS가 1등 색상을 제어함.
+            row.innerText = `${index+1}. ${displayName} (${p.score || 0})`;
             if (p.isLeaving) row.style.textDecoration = 'line-through';
             this.leaderboard.appendChild(row);
         });

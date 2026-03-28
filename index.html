@@ -49,23 +49,28 @@
     </div>
 
     <div id="screen-game" class="screen">
-        <div class="game-info-bar" style="max-width: 710px;">
-            <div id="ui-time">⏳ Time: 120</div>
-            <div id="ui-score">⭐ Score: 0</div>
-        </div>
-        
-        <div id="leaderboard" style="width: 100%; max-width: 710px; display: flex; gap: 15px; overflow-x: auto; background: var(--bg-panel); padding: 10px 15px; border-radius: 8px; margin-bottom: 10px; box-sizing: border-box;">
-        </div>
-        
-        <div style="width: 100%; max-width: 710px; display: flex; justify-content: flex-end; margin-bottom: 10px;">
-            <label
-                style="cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: bold; color: var(--text-muted); font-size: 14px;">
-                <input type="checkbox" id="toggle-emoji" style="cursor: pointer; width: 18px; height: 18px;">
-                <span>모양 표시</span>
-            </label>
-        </div>
+        <div class="game-layout">
+            
+            <div id="leaderboard" class="leaderboard-v">
+                <strong>🏆 실시간 순위</strong>
+                </div>
 
-        <div id="game-board"></div>
+            <div class="play-area">
+                <div class="game-info-bar">
+                    <div>⏳ Time: 120</div>
+                    <div>⭐ Score: 0</div>
+                </div>
+                
+                <div class="toggle-container">
+                    <label>
+                        <input type="checkbox" id="toggle-emoji">
+                        <span>모양 표시 (이모지 모드)</span>
+                    </label>
+                </div>
+
+                <div id="game-board"></div>
+            </div>
+        </div>
     </div>
 
     <div id="screen-result" class="screen">
