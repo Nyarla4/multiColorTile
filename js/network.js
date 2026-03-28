@@ -1,5 +1,6 @@
 const SUPABASE_URL = 'https://mhoscqcewmrorfxcewsn.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_2e33xf0hNMg3sP4xNTIiwQ_HGhFFu12';
+if (!window.supabase) throw new Error('[Network] Supabase SDK 로드 실패');
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // [구조] 방 상태 관리자
@@ -7,7 +8,7 @@ export class RoomManager {
     constructor() {
         this.currentRoomCode = null;
         this.isHost = false;
-        this.myId = 'Player_' + Math.floor(Math.random() * 1000);
+        this.myId = 'P_' + crypto.randomUUID().slice(0, 8);
         this.players = []; // 접속자 목록 배열
     }
 
@@ -29,22 +30,6 @@ export class RoomManager {
     addPlayer(id, isHost) {
         if (!this.players.find(p => p.id === id)) {
             this.players.push({ id: id, isHost: isHost, isReady: false });
-        }
-    }
-
-    removePlayer(id) {
-        this.players = this.players.filter(p => p.id !== id);
-    }
-
-    setReadyState(id, isReady) {
-        const player = this.players.find(p => p.id === id);
-        if (player) player.isReady = isReady;
-    }
-
-    toggleReady(id) {
-        const player = this.players.find(p => p.id === id);
-        if (player && !player.isHost) {
-            player.isReady = !player.isReady;
         }
     }
 

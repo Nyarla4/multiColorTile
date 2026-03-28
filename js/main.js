@@ -246,7 +246,7 @@ class AppController {
         // 요소들을 일일이 숨기는 대신, 깔끔하게 화면 통째로 전환!
         this.ui.switchScreen('screen-game');
         
-        this.scoreTimer.intervalId = setInterval(() => this.gameLoop(), 1000);
+        this.scoreTimer.start(() => this.gameLoop());
     }
 
     // 🚀 [흐름] 메인 게임 루프 (타이머 차감)
@@ -287,7 +287,7 @@ class AppController {
     // 🚀 [흐름] 게임 종료 처리
     endGame() {
         this.isGameRunning = false;
-        clearInterval(this.scoreTimer.intervalId);
+        this.scoreTimer.stop();
         
         // 콜백 제거하여 클릭 막기
         this.ui.renderBoard(this.board.grid, () => {});
@@ -303,6 +303,9 @@ class AppController {
             if (this.roomManager.isHost) {
                 this.ui.setupButtons(true);
             }
+
+            this.board = null;
+            this.scoreTimer = null;
         }, 100);
     }
 

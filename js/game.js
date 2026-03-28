@@ -102,6 +102,15 @@ export class ScoreTimer {
     constructor(config) {
         this.time = config.timeLimit;
         this.score = 0;
+        this.intervalId = null; // 그대로 유지
+    }
+
+    start(callback) {
+        this.intervalId = setInterval(callback, 1000);
+    }
+
+    stop() {
+        clearInterval(this.intervalId);
         this.intervalId = null;
     }
 
