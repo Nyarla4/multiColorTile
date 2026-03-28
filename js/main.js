@@ -36,6 +36,18 @@ class LobbyUI {
         // 닉네임 UI (screen-room 안에 있음)
         this.inputNickname = document.getElementById('input-nickname');
         this.nicknameStatus = document.getElementById('nickname-status');
+
+        // 🚀 [구조 연동] 토글 스위치 및 이모지 모드 상태
+        this.toggleEmoji = document.getElementById('toggle-emoji');
+        this.isEmojiMode = false; 
+
+        // 🚀 [흐름 추가] 토글을 누를 때마다 즉시 화면을 갱신
+        if(this.toggleEmoji) {
+            this.toggleEmoji.addEventListener('change', (e) => {
+                this.isEmojiMode = e.target.checked;
+                this.refreshAllEmojis();
+            });
+        }
     }
 
     switchScreen(screenId) {
@@ -84,6 +96,22 @@ class LobbyUI {
         }
     }
 
+    // 🚀 [핵심 흐름] 토글을 누르는 즉시 게임 보드와 리플레이 보드의 모든 텍스트를 갱신
+    refreshAllEmojis() {
+        if (this.gameBoard) {
+            Array.from(this.gameBoard.children).forEach(cell => {
+                const color = cell.dataset.color;
+                cell.innerText = (color && this.isEmojiMode) ? GameConfig.emojis[color] : '';
+            });
+        }
+        if (this.replayBoard) {
+            Array.from(this.replayBoard.children).forEach(cell => {
+                const color = cell.dataset.color;
+                cell.innerText = (color && this.isEmojiMode) ? GameConfig.emojis[color] : '';
+            });
+        }
+    }
+
     updateStats(time, score) {
         this.uiTime.innerText = `Time: ${time}`;
         this.uiScore.innerText = `Score: ${score}`;
@@ -123,14 +151,17 @@ class LobbyUI {
 
     // 셀 스타일 적용 (공통 로직)
     _applyCell(cell, color) {
+        cell.dataset.color = color || ''; // 나중에 갱신을 위해 색상 기록
         if (color) {
             cell.style.backgroundColor = color;
             cell.style.boxShadow = 'inset 0 0 8px rgba(0,0,0,0.4)';
             cell.style.cursor = 'default';
+            cell.innerText = this.isEmojiMode ? GameConfig.emojis[color] : '';
         } else {
-            cell.style.backgroundColor = 'var(--bg-canvas)'; // 🚀 빈 칸 다크 모드 색상
+            cell.style.backgroundColor = 'var(--bg-canvas)';
             cell.style.boxShadow = '';
             cell.style.cursor = 'pointer';
+            cell.innerText = '';
         }
     }
 
@@ -175,8 +206,10 @@ class LobbyUI {
         this.replayBoard.innerHTML = '';
         initialSeed.forEach((color) => {
             const cell = document.createElement('div');
-            cell.className = 'mini-tile'; // 🚀 CSS 클래스로 크기 제어
+            cell.className = 'mini-tile';
+            cell.dataset.color = color || '';
             cell.style.backgroundColor = color ? color : 'var(--bg-canvas)';
+            cell.innerText = (color && this.isEmojiMode) ? GameConfig.emojis[color] : '';
             this.replayBoard.appendChild(cell);
         });
     }
@@ -185,7 +218,9 @@ class LobbyUI {
     updateReplayCell(index, color) {
         const cell = this.replayBoard.children[index];
         if (cell) {
+            cell.dataset.color = color || '';
             cell.style.backgroundColor = color ? color : 'var(--bg-canvas)';
+            cell.innerText = (color && this.isEmojiMode) ? GameConfig.emojis[color] : '';
             if (!color) {
                 cell.style.transform = 'scale(0.8)';
                 setTimeout(() => cell.style.transform = 'scale(1)', 100);
