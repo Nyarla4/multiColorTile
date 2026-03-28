@@ -59,15 +59,18 @@ export class RoomManager {
     }
 }
 
-// network.js 의 NetworkClient 클래스
+// network.js 내부의 NetworkClient 클래스를 아래 코드로 통째로 교체하세요.
 
 export class NetworkClient {
     constructor() {
         this.channel = null;
         this.onSyncState = null;
+        this.myLastData = null; // [구조 추가] 나의 가장 최신 상태를 기억해둡니다.
     }
 
     connectToRoom(roomCode, myData) {
+        this.myLastData = myData; // 초기 상태 저장
+
         this.channel = supabase.channel('room_' + roomCode, {
             config: { presence: { key: myData.id } },
         });
@@ -79,9 +82,12 @@ export class NetworkClient {
             for (const key in state) {
                 const presenceArray = state[key];
                 if (presenceArray.length > 0) {
-                    // [핵심 해결] 유령이 섞여 있더라도, 무조건 배열의 맨 마지막(가장 최신) 상태를 가져옵니다!
                     const latestData = presenceArray[presenceArray.length - 1];
-                    currentPlayers.push(latestData);
+                    
+                    // 🚀 [핵심 로직] "나가는 중(isLeaving)"이라는 묘비(Tombstone)가 세워진 유저는 명단에서 즉시 제외!
+                    if (!latestData.isLeaving) {
+                        currentPlayers.push(latestData);
+                    }
                 }
             }
 
@@ -91,13 +97,14 @@ export class NetworkClient {
         this.channel.subscribe(async (status) => {
             if (status === 'SUBSCRIBED') {
                 console.log(`[Network] Supabase ${roomCode} 채널 접속 완료`);
-                await this.channel.track(myData);
+                await this.channel.track(this.myLastData);
             }
         });
     }
 
     async updateMyState(newData) {
         if (this.channel) {
+            this.myLastData = newData; // 상태를 바꿀 때마다 내 최신 상태 갱신
             await this.channel.track(newData);
         }
     }
@@ -105,18 +112,22 @@ export class NetworkClient {
     async disconnect() {
         if (this.channel) {
             try {
-                // 1. 서버에 내 상태 지우기 요청
-                await this.channel.untrack(); 
-                
-                // 🚀 [해결] 2. 채널 구독 정상 해지 (서버에 명시적 퇴장 알림을 보냄)
-                await this.channel.unsubscribe(); 
-                
-                // 3. 로컬 클라이언트에서 채널 객체 완전 삭제
-                await supabase.removeChannel(this.channel); 
+                // 🚀 [핵심 로직] 통신을 끊기 직전, 다른 사람들에게 "나 진짜 나간다" 라고 확정 데이터를 쏴줍니다.
+                if (this.myLastData) {
+                    await this.channel.track({ ...this.myLastData, isLeaving: true });
+                }
+
+                // 이 확정 데이터가 서버와 다른 클라이언트에게 도달할 수 있도록 아주 잠깐(0.2초)만 숨을 고릅니다.
+                await new Promise(resolve => setTimeout(resolve, 200));
+
+                // 이후 안전하게 구독 취소 및 채널 삭제
+                await this.channel.unsubscribe();
+                await supabase.removeChannel(this.channel);
             } catch (error) {
                 console.error("[Network] Disconnect Error:", error);
             } finally {
                 this.channel = null;
+                this.myLastData = null;
             }
         }
     }
