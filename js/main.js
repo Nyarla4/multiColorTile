@@ -84,9 +84,8 @@ class AppController {
             this.roomManager.addPlayer(playerData.id, playerData.isHost);
             this.ui.renderPlayers(this.roomManager.players, this.roomManager.myId);
 
-            // 만약 내가 방장이라면, 새로 들어온 사람에게 내 정보도 알려줘야 함
             if (this.roomManager.isHost) {
-                this.network.broadcastJoin({ id: this.roomManager.myId, isHost: true });
+                this.network.broadcastSyncState(this.roomManager.players);
             }
         };
 
@@ -94,12 +93,24 @@ class AppController {
         this.network.onPlayerReadyChanged = (data) => {
             this.roomManager.setReadyState(data.id, data.isReady);
             this.ui.renderPlayers(this.roomManager.players, this.roomManager.myId);
+            if (this.roomManager.isHost) {
+                this.network.broadcastSyncState(this.roomManager.players);
+            }
         };
 
         // 3. 누군가 동기화를 요청했을 때 (내가 방장이면 전체 목록을 다시 뿌림)
         this.network.onSyncRequest = () => {
             if (this.roomManager.isHost) {
-                this.network.broadcastJoin({ id: this.roomManager.myId, isHost: true });
+                this.network.broadcastSyncState(this.roomManager.players); // 방 전체 명단 쏴줌
+            }
+        };
+
+        // 4. [새로운 흐름] 방장으로부터 전체 방 상태(명단)를 수신했을 때
+        this.network.onSyncState = (playersData) => {
+            // 참가자(Guest)만 방장의 데이터를 믿고 자신의 명단을 덮어씀
+            if (!this.roomManager.isHost) {
+                this.roomManager.syncPlayers(playersData);
+                this.ui.renderPlayers(this.roomManager.players, this.roomManager.myId);
             }
         };
     }

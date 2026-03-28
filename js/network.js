@@ -49,6 +49,10 @@ export class RoomManager {
         this.isHost = false;
         this.players = [];
     }
+
+    syncPlayers(playersData) {
+        this.players = [...playersData];
+    }
 }
 
 // [구조] 통신 클라이언트 (Supabase 래퍼 예정)
@@ -58,6 +62,7 @@ export class NetworkClient {
         this.onPlayerJoined = null;
         this.onPlayerReadyChanged = null;
         this.onSyncRequest = null;
+        this.onSyncState = null;
     }
 
     connectToRoom(roomCode, myData) {
@@ -77,6 +82,9 @@ export class NetworkClient {
                 case 'SYNC_REQUEST':
                     if (this.onSyncRequest) this.onSyncRequest();
                     break;
+                case 'SYNC_STATE':
+                    if(this.onSyncState) this.onSyncState(msg.payload);
+                    break;
             }
         };
 
@@ -91,6 +99,10 @@ export class NetworkClient {
 
     broadcastReady(id, isReady) {
         if (this.channel) this.channel.postMessage({ type: 'READY', payload: { id, isReady } });
+    }
+
+    broadcastSyncState(playersArray) {
+        if(this.channel) this.channel.postMessage({ type: 'SYNC_STATE', payload: playersArray });
     }
 
     // 방장이 새로 들어온 사람에게 현재 방의 모든 플레이어 목록을 쏴줄 때 사용
