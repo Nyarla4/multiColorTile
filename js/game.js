@@ -96,3 +96,16 @@ export function generateSeed(config) {
 
     return seed;
 }
+
+// [구조] 점수와 시간 관리 역할
+export class ScoreTimer {
+    constructor(config) {
+        this.time = config.timeLimit;
+        this.score = 0;
+        this.intervalId = null;
+    }
+
+    addScore(amount) { this.score += amount; }
+    tick() { this.time--; return this.time; }
+    isTimeUp() { return this.time <= 0; }
+}

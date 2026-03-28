@@ -1,4 +1,4 @@
-import { GameConfig, Board, generateSeed } from './game.js';
+import { GameConfig, Board, generateSeed, ScoreTimer } from './game.js';
 import { RoomManager, NetworkClient } from './network.js';
 // 향후 game.js의 Board, GameConfig 등을 가져와 게임 시작 흐름을 추가합니다.
 
@@ -14,6 +14,11 @@ class LobbyUI {
         this.btnReady = document.getElementById('btn-ready');
         this.btnStart = document.getElementById('btn-start');
         this.gameBoard = document.getElementById('game-board'); // [구조 추가]
+        // 🚀 [구조 연동] 새로 추가한 HTML 요소 연결
+        this.gameInfo = document.getElementById('game-info');
+        this.uiTime = document.getElementById('ui-time');
+        this.uiScore = document.getElementById('ui-score');
+        this.leaderboard = document.getElementById('leaderboard');
     }
 
     switchScreen(screenId) {
@@ -59,13 +64,37 @@ class LobbyUI {
         }
     }
 
+    // 🚀 [흐름] 인게임 UI 켜기 및 업데이트
+    showGameUI() {
+        this.gameInfo.style.display = 'flex';
+        this.leaderboard.style.display = 'block';
+    }
+
+    updateStats(time, score) {
+        this.uiTime.innerText = `Time: ${time}`;
+        this.uiScore.innerText = `Score: ${score}`;
+    }
+
+    // 🚀 [흐름] 점수 기반으로 내림차순 정렬하여 순위표 렌더링
+    renderLeaderboard(players) {
+        const sorted = [...players].sort((a, b) => (b.score || 0) - (a.score || 0));
+        this.leaderboard.innerHTML = '<strong style="display:block; margin-bottom:5px;">🏆 실시간 순위</strong>';
+
+        sorted.forEach((p, index) => {
+            const row = document.createElement('div');
+            row.innerText = `${index + 1}등: ${p.id} - ${p.score || 0}점`;
+            if (p.isLeaving) row.style.textDecoration = 'line-through'; // 나간 사람 취소선 처리
+            this.leaderboard.appendChild(row);
+        });
+    }
+
     // 🚀 [흐름 추가] 전달받은 그리드 배열을 화면에 렌더링
     renderBoard(gridData, onClickCallback) {
         this.gameBoard.innerHTML = '';
         gridData.forEach((color, index) => {
             const cell = document.createElement('div');
             // 게임 타일 CSS 스타일링
-            cell.style.width = '30px'; 
+            cell.style.width = '30px';
             cell.style.height = '30px';
             cell.style.boxSizing = 'border-box';
             cell.style.borderRadius = '4px';
@@ -86,11 +115,13 @@ class LobbyUI {
 // [구조] 중앙 애플리케이션 컨트롤러
 class AppController {
     constructor() {
-       this.ui = new LobbyUI();
+        this.ui = new LobbyUI();
         this.roomManager = new RoomManager();
         this.network = new NetworkClient();
         this.board = null; // [구조 추가] 로컬 게임 보드 객체
-        
+        this.scoreTimer = null; // 🚀 [구조 추가] 타이머 객체
+        this.isGameRunning = false; // 🚀 [상태 추가] 게임 진행 여부
+
         this.bindEvents();
         this.setupNetworkCallbacks();
     }
@@ -105,15 +136,18 @@ class AppController {
     }
 
     setupNetworkCallbacks() {
-       this.network.onSyncState = (playersData) => {
-            console.log("[Network] 최신 명단 수신:", playersData);
+        this.network.onSyncState = (playersData) => {
             this.roomManager.syncPlayers(playersData);
-            this.ui.renderPlayers(this.roomManager.players, this.roomManager.myId);
+
+            // 🚀 [흐름 분기] 게임 중이면 순위표를 갱신하고, 대기실이면 명단을 갱신합니다.
+            if (this.isGameRunning) {
+                this.ui.renderLeaderboard(this.roomManager.players);
+            } else {
+                this.ui.renderPlayers(this.roomManager.players, this.roomManager.myId);
+            }
         };
 
-        // 🚀 [흐름 추가] 참가자들이 방장으로부터 시드를 받았을 때 게임 시작
         this.network.onGameStart = (seed) => {
-            console.log("[Game] 게임 시작 방송 수신. 보드를 생성합니다.");
             this.startGameProcess(seed);
         };
     }
@@ -123,10 +157,10 @@ class AppController {
         const newCode = this.roomManager.generateRoomCode();
         this.roomManager.setRoomState(newCode, true);
         this.roomManager.addPlayer(this.roomManager.myId, true);
-        
+
         // 내 데이터를 들고 채널 접속
         this.network.connectToRoom(newCode, { id: this.roomManager.myId, isHost: true });
-        
+
         this.ui.setupButtons(true);
         this.ui.renderPlayers(this.roomManager.players, this.roomManager.myId);
         this.ui.updateRoomView(this.roomManager.currentRoomCode, true);
@@ -156,23 +190,23 @@ class AppController {
     }
 
     handleReadyToggle() {
-        if (this.roomManager.isHost) return; 
-        
+        if (this.roomManager.isHost) return;
+
         const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
-        if (!me) return; 
-        
+        if (!me) return;
+
         const desiredReadyState = !me.isReady;
-        
+
         // 🚀 [해결] 서버에 보내기 전에 내 로컬 화면부터 즉시 갱신! (1~2초 답답함 해결)
         me.isReady = desiredReadyState;
         this.ui.renderPlayers(this.roomManager.players, this.roomManager.myId);
-        
+
         // 서버에 상태 갱신 요청 (다른 사람들의 화면은 1~2초 뒤에 바뀜)
         this.network.updateMyState({
             id: this.roomManager.myId,
             isHost: false,
             isReady: desiredReadyState,
-            updatedAt: Date.now() 
+            updatedAt: Date.now()
         });
     }
 
@@ -188,52 +222,93 @@ class AppController {
 
         // 1. 방장이 게임 시드를 한 번만 생성
         const seed = generateSeed(GameConfig);
-        
+
         // 2. 다른 사람들에게 시드를 전파 (Broadcast)
         this.network.broadcastGameStart(seed);
-        
+
         // 3. 방장 자신도 로컬에서 게임 시작
         this.startGameProcess(seed);
     }
 
     // 🚀 [흐름 추가] 실제 게임 화면 전환 및 렌더링 프로세스
     startGameProcess(seed) {
-        // UI 변경: 버튼 숨기고 상태 변경
+        // 대기실 UI 숨기기
         document.getElementById('btn-ready').style.display = 'none';
         document.getElementById('btn-start').style.display = 'none';
         document.getElementById('room-status').innerText = "게임 진행 중!";
+        document.getElementById('player-list').parentElement.style.display = 'none'; // 대기실 명단 숨김
 
-        // 로컬 보드 객체 초기화 및 렌더링
+        this.isGameRunning = true;
         this.board = new Board(GameConfig);
         this.board.initializeWithSeed(seed);
-        
-        // 렌더링 호출 및 클릭 이벤트 연결
+
+        // 🚀 [흐름] 타이머 및 점수 초기화
+        this.scoreTimer = new ScoreTimer(GameConfig);
+        this.ui.showGameUI();
+        this.ui.updateStats(this.scoreTimer.time, this.scoreTimer.score);
+
+        // 내 초기 점수(0점)를 서버에 덮어씌움
+        const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
+        if (me) {
+            this.network.updateMyState({ ...me, score: 0 });
+        }
+
         this.ui.renderBoard(this.board.grid, (index) => this.handleCellClick(index));
+
+        // 🚀 [흐름] 1초마다 타이머 틱(Tick) 작동
+        this.scoreTimer.intervalId = setInterval(() => this.gameLoop(), 1000);
     }
 
-    // 🚀 [흐름 추가] 플레이어가 빈 공간을 클릭했을 때의 타일 파괴 로직
-    handleCellClick(index) {
-        if (!this.board) return;
+    // 🚀 [흐름] 메인 게임 루프 (타이머 차감)
+    gameLoop() {
+        if (!this.isGameRunning) return;
 
-        // game.js 의 직선 탐색 로직 호출
-        const targetTiles = this.board.getMatchedTilesToDestroy(index);
-        
-        if (targetTiles.length > 0) {
-            // 타일 파괴 (데이터 null 처리)
-            targetTiles.forEach(idx => this.board.grid[idx] = null);
-            
-            // 파괴된 최신 상태로 화면 다시 그리기
-            this.ui.renderBoard(this.board.grid, (idx) => this.handleCellClick(idx));
-            
-            // 추후 여기에 점수 획득 및 서버 동기화 로직이 들어갑니다.
-            console.log(`${targetTiles.length}개 타일 파괴됨!`);
+        const timeLeft = this.scoreTimer.tick();
+        this.ui.updateStats(timeLeft, this.scoreTimer.score);
+
+        if (this.scoreTimer.isTimeUp()) {
+            this.endGame();
         }
     }
 
+    // 🚀 [흐름] 타일 클릭 시 점수 획득 및 동기화
+    handleCellClick(index) {
+        if (!this.board || !this.isGameRunning) return;
+
+        const targetTiles = this.board.getMatchedTilesToDestroy(index);
+
+        if (targetTiles.length > 0) {
+            // 타일 파괴
+            targetTiles.forEach(idx => this.board.grid[idx] = null);
+
+            // 점수 증가 (타일 1개당 1점) 및 UI 갱신
+            this.scoreTimer.addScore(targetTiles.length * 1);
+            this.ui.updateStats(this.scoreTimer.time, this.scoreTimer.score);
+            this.ui.renderBoard(this.board.grid, (idx) => this.handleCellClick(idx));
+
+            // 🚀 [핵심 흐름] 점수가 올랐으니 내 최신 상태를 Supabase에 즉시 전송!
+            const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
+            if (me) {
+                this.network.updateMyState({ ...me, score: this.scoreTimer.score, updatedAt: Date.now() });
+            }
+        }
+    }
+
+    // 🚀 [흐름] 게임 종료 처리
+    endGame() {
+        this.isGameRunning = false;
+        clearInterval(this.scoreTimer.intervalId);
+
+        // 타일 클릭을 막기 위해 렌더링만 갱신 (콜백 제거)
+        this.ui.renderBoard(this.board.grid, () => { });
+
+        setTimeout(() => alert(`게임 종료! 당신의 최종 점수: ${this.scoreTimer.score}점`), 100);
+    }
+
     // [흐름] 방 퇴장 로직
-   async handleLeaveRoom() {
+    async handleLeaveRoom() {
         console.log("[Lobby] 방 나가기 시도...");
-        await this.network.disconnect(); 
+        await this.network.disconnect();
         this.roomManager.clearRoomState();
         this.ui.clearInput();
         this.ui.switchScreen('screen-lobby');
