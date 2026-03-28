@@ -79,39 +79,10 @@ class AppController {
     }
 
     setupNetworkCallbacks() {
-        // 1. 누군가 방에 들어왔을 때
-        this.network.onPlayerJoined = (playerData) => {
-            this.roomManager.addPlayer(playerData.id, playerData.isHost);
-            this.ui.renderPlayers(this.roomManager.players, this.roomManager.myId);
-
-            if (this.roomManager.isHost) {
-                this.network.broadcastSyncState(this.roomManager.players);
-            }
-        };
-
-        // 2. 누군가 준비 버튼을 눌렀을 때
-        this.network.onPlayerReadyChanged = (data) => {
-            this.roomManager.setReadyState(data.id, data.isReady);
-            this.ui.renderPlayers(this.roomManager.players, this.roomManager.myId);
-            if (this.roomManager.isHost) {
-                this.network.broadcastSyncState(this.roomManager.players);
-            }
-        };
-
-        // 3. 누군가 동기화를 요청했을 때 (내가 방장이면 전체 목록을 다시 뿌림)
-        this.network.onSyncRequest = () => {
-            if (this.roomManager.isHost) {
-                this.network.broadcastSyncState(this.roomManager.players); // 방 전체 명단 쏴줌
-            }
-        };
-
-        // 4. [새로운 흐름] 방장으로부터 전체 방 상태(명단)를 수신했을 때
+        // [흐름] Supabase가 최신 명단을 주면, 무조건 내 RoomManager를 덮어쓰고 화면을 새로 그림
         this.network.onSyncState = (playersData) => {
-            // 참가자(Guest)만 방장의 데이터를 믿고 자신의 명단을 덮어씀
-            if (!this.roomManager.isHost) {
-                this.roomManager.syncPlayers(playersData);
-                this.ui.renderPlayers(this.roomManager.players, this.roomManager.myId);
-            }
+            this.roomManager.syncPlayers(playersData);
+            this.ui.renderPlayers(this.roomManager.players, this.roomManager.myId);
         };
     }
 
@@ -153,13 +124,18 @@ class AppController {
     handleReadyToggle() {
         if (this.roomManager.isHost) return; 
         
-        this.roomManager.toggleReady(this.roomManager.myId);
+        // 내 로컬 상태 변경 (isReady 토글 로직은 RoomManager에 있던 것을 잠시 빌려옴)
+        const me = this.roomManager.players.find(p => p.id === this.roomManager.myId) || { isReady: false };
+        const newReadyState = !me.isReady;
         
-        // [흐름 추가] 변경된 내 준비 상태를 방 전체에 브로드캐스트
-        const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
-        this.network.broadcastReady(me.id, me.isReady);
+        // [흐름 변경] Supabase Presence에 내 새로운 상태를 덮어씌움
+        this.network.updateMyState({
+            id: this.roomManager.myId,
+            isHost: false,
+            isReady: newReadyState
+        });
         
-        this.ui.renderPlayers(this.roomManager.players, this.roomManager.myId);
+        // (화면 갱신은 onSyncState 콜백이 알아서 처리해줍니다)
     }
 
     handleGameStart() {
