@@ -62,39 +62,42 @@ export class RoomManager {
 export class NetworkClient {
     constructor() {
         this.channel = null;
-        this.onSyncState = null; // Supabase가 명단을 갱신해줄 때 호출할 콜백
-        // (onPlayerJoined, onPlayerReadyChanged 등은 Presence로 통합되어 더 이상 필요 없습니다)
+        this.onSyncState = null; 
     }
 
     connectToRoom(roomCode, myData) {
-        // 1. 채널 생성
-        this.channel = supabase.channel('room_' + roomCode);
+        // [핵심 변경점] 랜덤 ID 대신 내 ID를 고유 키(key)로 강제 지정합니다.
+        // 이렇게 하면 중복 접속이나 유령 플레이어 현상을 완벽하게 방지할 수 있습니다.
+        this.channel = supabase.channel('room_' + roomCode, {
+            config: {
+                presence: {
+                    key: myData.id, 
+                },
+            },
+        });
 
-        // 2. [흐름] 누군가 들어오거나 나가거나 상태를 바꿀 때마다 자동 실행
         this.channel.on('presence', { event: 'sync' }, () => {
             const state = this.channel.presenceState();
             const currentPlayers = [];
             
-            // Supabase의 Presence 데이터를 우리가 쓰는 배열 형태로 변환
-            for (const id in state) {
-                currentPlayers.push(state[id][0]); // 가장 최신 상태 추출
+            // state 구조가 { 'Player_123': [{...}], 'Player_456': [{...}] } 형태로 바뀝니다.
+            for (const key in state) {
+                if (state[key].length > 0) {
+                    currentPlayers.push(state[key][0]); // 항상 최신 상태만 추출
+                }
             }
             
-            // 컨트롤러로 최신 명단 전달
             if (this.onSyncState) this.onSyncState(currentPlayers);
         });
 
-        // 3. 채널 구독 및 내 데이터 등록
         this.channel.subscribe(async (status) => {
             if (status === 'SUBSCRIBED') {
                 console.log(`[Network] Supabase ${roomCode} 채널 접속 완료`);
-                // 내 초기 상태(myData)를 Presence에 등록
                 await this.channel.track(myData);
             }
         });
     }
 
-    // [흐름] 내 준비 상태가 바뀌었을 때 Presence 정보 업데이트
     async updateMyState(newData) {
         if (this.channel) {
             await this.channel.track(newData);
@@ -103,8 +106,8 @@ export class NetworkClient {
 
     async disconnect() {
         if (this.channel) {
-            await this.channel.untrack();
-            supabase.removeChannel(this.channel);
+            await this.channel.untrack(); // 서버에 즉시 내 흔적 삭제 요청
+            await supabase.removeChannel(this.channel);
             this.channel = null;
         }
     }

@@ -124,16 +124,19 @@ class AppController {
     }
 
     handleReadyToggle() {
-        if (this.roomManager.isHost) return; 
-        
+        if (this.roomManager.isHost) return;
+
         const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
         if (!me) return;
 
+        // 1. 상태 반전
         const newReadyState = !me.isReady;
 
+        // 2. 서버 응답을 기다리지 않고 내 화면(UI)부터 즉각 갱신하여 반응성 향상
         me.isReady = newReadyState;
         this.ui.renderPlayers(this.roomManager.players, this.roomManager.myId);
-        
+
+        // 3. 고유 키(Presence Key)에 덮어쓰기 요청
         this.network.updateMyState({
             id: this.roomManager.myId,
             isHost: false,
@@ -156,8 +159,8 @@ class AppController {
     }
 
     // [흐름] 방 퇴장 로직
-    async handleLeaveRoom() {
-        await this.network.disconnect();
+   async handleLeaveRoom() {
+        await this.network.disconnect(); 
         this.roomManager.clearRoomState();
         this.ui.clearInput();
         this.ui.switchScreen('screen-lobby');
