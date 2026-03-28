@@ -126,18 +126,19 @@ class AppController {
     handleReadyToggle() {
         if (this.roomManager.isHost) return; 
         
-        // 내 로컬 상태 변경 (isReady 토글 로직은 RoomManager에 있던 것을 잠시 빌려옴)
-        const me = this.roomManager.players.find(p => p.id === this.roomManager.myId) || { isReady: false };
+        const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
+        if (!me) return;
+
         const newReadyState = !me.isReady;
+
+        me.isReady = newReadyState;
+        this.ui.renderPlayers(this.roomManager.players, this.roomManager.myId);
         
-        // [흐름 변경] Supabase Presence에 내 새로운 상태를 덮어씌움
         this.network.updateMyState({
             id: this.roomManager.myId,
             isHost: false,
             isReady: newReadyState
         });
-        
-        // (화면 갱신은 onSyncState 콜백이 알아서 처리해줍니다)
     }
 
     handleGameStart() {
@@ -155,8 +156,8 @@ class AppController {
     }
 
     // [흐름] 방 퇴장 로직
-    handleLeaveRoom() {
-        this.network.disconnect();
+    async handleLeaveRoom() {
+        await this.network.disconnect();
         this.roomManager.clearRoomState();
         this.ui.clearInput();
         this.ui.switchScreen('screen-lobby');

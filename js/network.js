@@ -101,8 +101,9 @@ export class NetworkClient {
         }
     }
 
-    disconnect() {
+    async disconnect() {
         if (this.channel) {
+            await this.channel.untrack();
             supabase.removeChannel(this.channel);
             this.channel = null;
         }
