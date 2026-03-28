@@ -173,95 +173,86 @@ ul.list-box li {
     border-radius: 4px;
 }
 
-/* 🚀 세로형 실시간 랭킹바 (왼쪽 배치) */
-.leaderboard-v {
-    width: 220px;
-    max-height: 500px;
-    /* 너무 길어지지 않게 스크롤 처리 */
+/* 🚀 게임 화면 레이아웃 (가로 2열 배치) */
+.game-layout {
     display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-    overflow-x: hidden;
-    background-color: var(--bg-panel);
-    padding: 15px;
-    border-radius: 8px;
-    flex-shrink: 0;
-    /* 공간 고정 */
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    flex-direction: row; /* 핵심: 가로로 나란히 배치 */
+    align-items: flex-start; /* 위쪽 여백 맞춤 */
+    justify-content: center;
+    gap: 30px; /* 랭킹바와 보드 사이의 간격 */
+    width: 100%;
+    max-width: 1100px;
 }
 
+/* 🚀 실시간 랭킹바 (왼쪽 영역) */
+.leaderboard-v {
+    width: 250px;
+    background-color: var(--bg-panel);
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
 .leaderboard-v strong {
     display: block;
     text-align: center;
-    margin-bottom: 15px;
     color: var(--text-muted);
     font-size: 1.1rem;
-}
-
-.leaderboard-v div {
-    padding: 8px;
+    padding-bottom: 10px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 5px;
+}
+.leaderboard-v div {
+    color: var(--text-main);
+    font-size: 1rem;
+    padding: 5px 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
-
-/* 1등 자동 강조 (제공된 색상 적용) */
-.leaderboard-v div:first-child {
+/* 1등 자동 강조 */
+.leaderboard-v div:nth-of-type(1) {
     color: var(--highlight) !important;
     font-weight: bold;
-    border-bottom-color: var(--highlight);
 }
 
-/* 🚀 플레이 구역 (오른쪽 배치) */
+/* 🚀 플레이 구역 (오른쪽 영역) */
 .play-area {
     display: flex;
     flex-direction: column;
     align-items: center;
-    flex: 1;
-    /* 남은 공간 모두 차지 */
-    gap: 10px;
 }
 
-/* 🚀 인게임 상단바 포인트 색상 */
-.game-info-bar {
-    display: flex;
-    justify-content: space-between;
-    font-size: 1.2rem;
-    font-weight: bold;
-    width: 100%;
-    max-width: 710px;
-    color: var(--accent);
+/* 상단바 (시간, 점수) */
+.game-info-bar { 
+    display: flex; 
+    justify-content: space-between; 
+    font-size: 1.2rem; 
+    font-weight: bold; 
+    width: 100%; 
+    max-width: 710px; /* 타일 보드 너비에 딱 맞춤 */
+    margin-bottom: 10px;
 }
-
-/* 자식 div의 위치로 색상 제어 (제공된 색상 적용) */
-.game-info-bar>div:first-child {
-    color: var(--highlight) !important;
-}
-
-/* Time: 화사한 노란색 */
-.game-info-bar>div:last-child {
-    color: var(--accent) !important;
-}
-
-/* Score: 차분한 초록색 */
-
-/* 토글 컨테이너 위치 조정 */
+.game-info-bar > div:first-child { color: var(--highlight); }
+.game-info-bar > div:last-child { color: var(--accent); }
+/* 토글 스위치 영역 */
 .toggle-container {
     width: 100%;
     max-width: 710px;
     display: flex;
-    justify-content: flex-end;
+    justify-content: flex-end; /* 우측 정렬 */
+    margin-bottom: 10px;
 }
-
-.toggle-container label {
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-weight: bold;
-    color: var(--text-muted);
-    font-size: 14px;
+.toggle-container label { 
+    cursor: pointer; 
+    display: flex; 
+    align-items: center; 
+    gap: 8px; 
+    font-weight: bold; 
+    color: var(--text-muted); 
+    font-size: 14px; 
 }
 
 .toggle-container input[type="checkbox"] {
