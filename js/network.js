@@ -1,3 +1,7 @@
+const SUPABASE_URL = 'https://mhoscqcewmrorfxcewsn.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_2e33xf0hNMg3sP4xNTIiwQ_HGhFFu12';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 // [구조] 방 상태 관리자
 export class RoomManager {
     constructor() {
@@ -55,64 +59,51 @@ export class RoomManager {
     }
 }
 
-// [구조] 통신 클라이언트 (Supabase 래퍼 예정)
 export class NetworkClient {
     constructor() {
         this.channel = null;
-        this.onPlayerJoined = null;
-        this.onPlayerReadyChanged = null;
-        this.onSyncRequest = null;
-        this.onSyncState = null;
+        this.onSyncState = null; // Supabase가 명단을 갱신해줄 때 호출할 콜백
+        // (onPlayerJoined, onPlayerReadyChanged 등은 Presence로 통합되어 더 이상 필요 없습니다)
     }
 
     connectToRoom(roomCode, myData) {
-        this.channel = new BroadcastChannel('room_' + roomCode);
-        console.log(`[Network] ${roomCode} 채널 접속 완료`);
+        // 1. 채널 생성
+        this.channel = supabase.channel('room_' + roomCode);
 
-        // 메시지 수신 흐름 (Router 역할)
-        this.channel.onmessage = (event) => {
-            const msg = event.data;
-            switch (msg.type) {
-                case 'JOIN':
-                    if (this.onPlayerJoined) this.onPlayerJoined(msg.payload);
-                    break;
-                case 'READY':
-                    if (this.onPlayerReadyChanged) this.onPlayerReadyChanged(msg.payload);
-                    break;
-                case 'SYNC_REQUEST':
-                    if (this.onSyncRequest) this.onSyncRequest();
-                    break;
-                case 'SYNC_STATE':
-                    if(this.onSyncState) this.onSyncState(msg.payload);
-                    break;
+        // 2. [흐름] 누군가 들어오거나 나가거나 상태를 바꿀 때마다 자동 실행
+        this.channel.on('presence', { event: 'sync' }, () => {
+            const state = this.channel.presenceState();
+            const currentPlayers = [];
+            
+            // Supabase의 Presence 데이터를 우리가 쓰는 배열 형태로 변환
+            for (const id in state) {
+                currentPlayers.push(state[id][0]); // 가장 최신 상태 추출
             }
-        };
+            
+            // 컨트롤러로 최신 명단 전달
+            if (this.onSyncState) this.onSyncState(currentPlayers);
+        });
 
-        // 접속하자마자 내 정보를 방에 뿌림
-        this.broadcastJoin(myData);
+        // 3. 채널 구독 및 내 데이터 등록
+        this.channel.subscribe(async (status) => {
+            if (status === 'SUBSCRIBED') {
+                console.log(`[Network] Supabase ${roomCode} 채널 접속 완료`);
+                // 내 초기 상태(myData)를 Presence에 등록
+                await this.channel.track(myData);
+            }
+        });
     }
 
-    // [흐름] 데이터 발신 메서드들
-    broadcastJoin(playerData) {
-        if (this.channel) this.channel.postMessage({ type: 'JOIN', payload: playerData });
-    }
-
-    broadcastReady(id, isReady) {
-        if (this.channel) this.channel.postMessage({ type: 'READY', payload: { id, isReady } });
-    }
-
-    broadcastSyncState(playersArray) {
-        if(this.channel) this.channel.postMessage({ type: 'SYNC_STATE', payload: playersArray });
-    }
-
-    // 방장이 새로 들어온 사람에게 현재 방의 모든 플레이어 목록을 쏴줄 때 사용
-    requestSync() {
-        if (this.channel) this.channel.postMessage({ type: 'SYNC_REQUEST' });
+    // [흐름] 내 준비 상태가 바뀌었을 때 Presence 정보 업데이트
+    async updateMyState(newData) {
+        if (this.channel) {
+            await this.channel.track(newData);
+        }
     }
 
     disconnect() {
         if (this.channel) {
-            this.channel.close();
+            supabase.removeChannel(this.channel);
             this.channel = null;
         }
     }
