@@ -55,13 +55,14 @@ export class NetworkClient {
     }
 
     connectToRoom(roomCode, myData) {
-        this.myLastData = myData; // 초기 상태 저장
+        this.myLastData = myData;
 
         this.channel = supabase.channel('room_' + roomCode, {
             config: { presence: { key: myData.id } },
         });
 
-        this.channel.on('presence', { event: 'sync' }, () => {
+        // 공통 함수로 분리
+        const syncCurrentState = () => {
             const state = this.channel.presenceState();
             const currentPlayers = [];
 
@@ -69,8 +70,6 @@ export class NetworkClient {
                 const presenceArray = state[key];
                 if (presenceArray.length > 0) {
                     const latestData = presenceArray[presenceArray.length - 1];
-                    
-                    // 🚀 [핵심 로직] "나가는 중(isLeaving)"이라는 묘비(Tombstone)가 세워진 유저는 명단에서 즉시 제외!
                     if (!latestData.isLeaving) {
                         currentPlayers.push(latestData);
                     }
@@ -78,9 +77,12 @@ export class NetworkClient {
             }
 
             if (this.onSyncState) this.onSyncState(currentPlayers);
-        });
+        };
 
-        // 🚀 [흐름 추가] 방장이 쏜 '게임 시작(Broadcast)' 이벤트를 수신
+        // sync 와 leave 둘 다 같은 처리
+        this.channel.on('presence', { event: 'sync' }, syncCurrentState);
+        this.channel.on('presence', { event: 'leave' }, syncCurrentState); // ← 추가
+
         this.channel.on('broadcast', { event: 'game_start' }, (payload) => {
             if (this.onGameStart) this.onGameStart(payload.payload.seed);
         });
