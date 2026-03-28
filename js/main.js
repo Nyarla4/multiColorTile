@@ -107,18 +107,20 @@ class AppController {
         if (code.length !== 4) { alert('4자리 방 코드를 정확히 입력해주세요.'); return; }
 
         this.roomManager.setRoomState(code, false);
-        this.roomManager.addPlayer(this.roomManager.myId, false);
-        
-        // 내 데이터를 들고 채널 접속
-        this.network.connectToRoom(code, { id: this.roomManager.myId, isHost: false });
-        
-        // 방장에게 방 상태 동기화 요청
-        this.network.requestSync();
+
+        // 내 데이터를 들고 Supabase 채널 접속
+        this.network.connectToRoom(code, {
+            id: this.roomManager.myId,
+            isHost: false,
+            isReady: false
+        });
+
+        // ❌ 아래 코드가 남아있었다면 삭제해 주세요! (에러의 원인)
+        // this.network.requestSync(); 
 
         this.ui.setupButtons(false);
-        this.ui.renderPlayers(this.roomManager.players, this.roomManager.myId);
         this.ui.updateRoomView(this.roomManager.currentRoomCode, false);
-        this.ui.switchScreen('screen-room');
+        this.ui.switchScreen('screen-room'); // 이제 여기까지 무사히 흐름이 도달합니다!
     }
 
     handleReadyToggle() {
