@@ -130,9 +130,12 @@ class AppController {
         if (!me) return; 
         
         const desiredReadyState = !me.isReady;
-        console.log(`[Lobby] 준비 상태 변경 요청: ${me.isReady} -> ${desiredReadyState}`);
         
-        // [흐름 추가] 타임스탬프를 함께 보내 서버가 완전히 새로운 데이터로 인식하게 강제합니다.
+        // 🚀 [해결] 서버에 보내기 전에 내 로컬 화면부터 즉시 갱신! (1~2초 답답함 해결)
+        me.isReady = desiredReadyState;
+        this.ui.renderPlayers(this.roomManager.players, this.roomManager.myId);
+        
+        // 서버에 상태 갱신 요청 (다른 사람들의 화면은 1~2초 뒤에 바뀜)
         this.network.updateMyState({
             id: this.roomManager.myId,
             isHost: false,

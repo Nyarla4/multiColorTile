@@ -104,13 +104,20 @@ export class NetworkClient {
 
     async disconnect() {
         if (this.channel) {
-            await this.channel.untrack(); // 흔적 지우기 요청
-
-            // [핵심 해결] 지우기 요청이 서버에 닿을 수 있도록 0.2초만 기다려줍니다 (유령 방지)
-            await new Promise(resolve => setTimeout(resolve, 200));
-
-            await supabase.removeChannel(this.channel);
-            this.channel = null;
+            try {
+                // 1. 서버에 내 상태 지우기 요청
+                await this.channel.untrack(); 
+                
+                // 🚀 [해결] 2. 채널 구독 정상 해지 (서버에 명시적 퇴장 알림을 보냄)
+                await this.channel.unsubscribe(); 
+                
+                // 3. 로컬 클라이언트에서 채널 객체 완전 삭제
+                await supabase.removeChannel(this.channel); 
+            } catch (error) {
+                console.error("[Network] Disconnect Error:", error);
+            } finally {
+                this.channel = null;
+            }
         }
     }
 }
