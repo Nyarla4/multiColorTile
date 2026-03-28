@@ -84,27 +84,45 @@ class LobbyUI {
             this.leaderboard.appendChild(row);
         });
     }
-
-    // 🚀 [흐름 추가] 전달받은 그리드 배열을 화면에 렌더링
-    renderBoard(gridData, onClickCallback) {
+    
+    // 게임 시작 시 딱 1회만 호출 — 345개 셀 생성
+    initBoard(gridData) {
         this.gameBoard.innerHTML = '';
         gridData.forEach((color, index) => {
             const cell = document.createElement('div');
-            // 게임 타일 CSS 스타일링
+            cell.dataset.index = index;
             cell.style.width = '30px';
             cell.style.height = '30px';
             cell.style.boxSizing = 'border-box';
             cell.style.borderRadius = '4px';
-
-            if (color) { // 색상이 있으면 타일
-                cell.style.backgroundColor = color;
-                cell.style.boxShadow = 'inset 0 0 5px rgba(0,0,0,0.2)';
-            } else { // null 이면 빈 공간 (클릭 가능)
-                cell.style.backgroundColor = '#eaeaea';
-                cell.style.cursor = 'pointer';
-                cell.addEventListener('click', () => onClickCallback(index));
-            }
+            this._applyCell(cell, color);
             this.gameBoard.appendChild(cell);
+        });
+    }
+
+    // 타일 파괴 시 해당 셀 하나만 업데이트
+    updateCell(index, color) {
+        const cell = this.gameBoard.children[index];
+        if (cell) this._applyCell(cell, color);
+    }
+
+    // 셀 스타일 적용 (공통 로직)
+    _applyCell(cell, color) {
+        if (color) {
+            cell.style.backgroundColor = color;
+            cell.style.boxShadow = 'inset 0 0 5px rgba(0,0,0,0.2)';
+            cell.style.cursor = 'default';
+        } else {
+            cell.style.backgroundColor = '#eaeaea';
+            cell.style.boxShadow = '';
+            cell.style.cursor = 'pointer';
+        }
+    }
+
+    bindBoardClick(callback) {
+        this.gameBoard.addEventListener('click', (e) => {
+            const cell = e.target.closest('[data-index]');
+            if (cell) callback(+cell.dataset.index);
         });
     }
 }
@@ -130,6 +148,8 @@ class AppController {
         document.getElementById('btn-leave-room').addEventListener('click', () => this.handleLeaveRoom());
         document.getElementById('btn-ready').addEventListener('click', () => this.handleReadyToggle());
         document.getElementById('btn-start').addEventListener('click', () => this.handleGameStart());
+
+        this.ui.bindBoardClick((index) => this.handleCellClick(index));
     }
 
     setupNetworkCallbacks() {
@@ -241,11 +261,8 @@ class AppController {
         }
 
         this.ui.updateStats(this.scoreTimer.time, this.scoreTimer.score);
-        this.ui.renderBoard(this.board.grid, (index) => this.handleCellClick(index));
-        
-        // 요소들을 일일이 숨기는 대신, 깔끔하게 화면 통째로 전환!
+        this.ui.initBoard(this.board.grid);                              // ← 변경
         this.ui.switchScreen('screen-game');
-        
         this.scoreTimer.start(() => this.gameLoop());
     }
 
@@ -268,15 +285,15 @@ class AppController {
         const targetTiles = this.board.getMatchedTilesToDestroy(index);
 
         if (targetTiles.length > 0) {
-            // 타일 파괴
-            targetTiles.forEach(idx => this.board.grid[idx] = null);
+            targetTiles.forEach(idx => {
+                this.board.grid[idx] = null;
+                this.ui.updateCell(idx, null); // ← 변경: 해당 셀만 업데이트
+            });
 
-            // 점수 증가 (타일 1개당 1점) 및 UI 갱신
-            this.scoreTimer.addScore(targetTiles.length * 1);
+            this.scoreTimer.addScore(targetTiles.length);
             this.ui.updateStats(this.scoreTimer.time, this.scoreTimer.score);
-            this.ui.renderBoard(this.board.grid, (idx) => this.handleCellClick(idx));
+            // ← renderBoard() 호출 완전 제거
 
-            // 🚀 [핵심 흐름] 점수가 올랐으니 내 최신 상태를 Supabase에 즉시 전송!
             const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
             if (me) {
                 this.network.updateMyState({ ...me, score: this.scoreTimer.score, updatedAt: Date.now() });
@@ -286,11 +303,9 @@ class AppController {
 
     // 🚀 [흐름] 게임 종료 처리
     endGame() {
-        this.isGameRunning = false;
-        this.scoreTimer.stop();
-        
-        // 콜백 제거하여 클릭 막기
-        this.ui.renderBoard(this.board.grid, () => {});
+        this.isGameRunning = false; // isGameRunning = false면 handleCellClick 상단에서 자동 차단됨
+    this.scoreTimer.stop();
+    // ← renderBoard(this.board.grid, () => {}) 제거 — isGameRunning 체크로 충분
         
         setTimeout(() => {
             alert(`게임 종료! 당신의 최종 점수: ${this.scoreTimer.score}점`);
