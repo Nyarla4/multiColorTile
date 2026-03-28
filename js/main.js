@@ -79,8 +79,8 @@ class AppController {
     }
 
     setupNetworkCallbacks() {
-        // [흐름] Supabase가 최신 명단을 주면, 무조건 내 RoomManager를 덮어쓰고 화면을 새로 그림
-        this.network.onSyncState = (playersData) => {
+       this.network.onSyncState = (playersData) => {
+            console.log("[Network] 최신 명단 수신:", playersData);
             this.roomManager.syncPlayers(playersData);
             this.ui.renderPlayers(this.roomManager.players, this.roomManager.myId);
         };
@@ -124,23 +124,26 @@ class AppController {
     }
 
     handleReadyToggle() {
-        if (this.roomManager.isHost) return;
-
+        if (this.roomManager.isHost) return; 
+        
+        // 1. 현재 로컬 명단에서 내 데이터 찾기 (상태 파악용)
         const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
-        if (!me) return;
-
-        // 1. 상태 반전
-        const newReadyState = !me.isReady;
-
-        // 2. 서버 응답을 기다리지 않고 내 화면(UI)부터 즉각 갱신하여 반응성 향상
-        me.isReady = newReadyState;
-        this.ui.renderPlayers(this.roomManager.players, this.roomManager.myId);
-
-        // 3. 고유 키(Presence Key)에 덮어쓰기 요청
+        if (!me) return; 
+        
+        // 2. 원하는 새로운 준비 상태 결정
+        const desiredReadyState = !me.isReady;
+        console.log(`[Lobby] 준비 상태 변경 요청: ${me.isReady} -> ${desiredReadyState}`);
+        
+        // ❌ [삭제] 로컬 데이터를 직접 수정하거나 renderPlayers를 호출하지 않습니다!
+        // me.isReady = desiredReadyState;
+        // this.ui.renderPlayers(...);
+        
+        // 3. [구조적 변경] Supabase에 내 새로운 상태를 덮어씌워달라고 '요청'만 보냅니다.
+        // Supabase가 이를 처리하고 다시 전파(onSyncState)하면 그때 화면이 바뀝니다.
         this.network.updateMyState({
             id: this.roomManager.myId,
             isHost: false,
-            isReady: newReadyState
+            isReady: desiredReadyState
         });
     }
 
@@ -160,6 +163,7 @@ class AppController {
 
     // [흐름] 방 퇴장 로직
    async handleLeaveRoom() {
+        console.log("[Lobby] 방 나가기 시도...");
         await this.network.disconnect(); 
         this.roomManager.clearRoomState();
         this.ui.clearInput();
