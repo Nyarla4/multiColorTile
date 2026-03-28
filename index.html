@@ -1,141 +1,44 @@
 <!DOCTYPE html>
 <html lang="ko">
-
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>컬러 타일 멀티플레이</title>
-    <link rel="stylesheet" href="css/style.css">
+    <title>Tile Clear - Multiplayer</title>
+    <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f0f0f0; }
+        .screen { display: none; flex-direction: column; align-items: center; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .screen.active { display: flex; }
+        h1 { margin-top: 0; color: #333; }
+        .form-group { margin: 20px 0; display: flex; gap: 10px; }
+        input[type="text"] { padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; width: 150px; text-align: center; font-weight: bold;}
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; border: none; border-radius: 4px; background-color: #007bff; color: white; font-weight: bold; transition: background-color 0.2s;}
+        button:hover { background-color: #0056b3; }
+        .btn-secondary { background-color: #28a745; }
+        .btn-secondary:hover { background-color: #1e7e34; }
+        .divider { margin: 20px 0; color: #888; font-size: 0.9em; }
+        
+        /* 게임 화면 임시 스타일 */
+        #game-board { display: grid; grid-template-columns: repeat(23, 30px); grid-template-rows: repeat(15, 30px); gap: 1px; background-color: #ddd; border: 2px solid #ccc; padding: 5px; margin-top: 20px;}
+    </style>
 </head>
-
 <body>
-    <div id="app-container">
 
-        <!-- 시작 페이지 — 더 이상 사용하지 않음, hidden 처리 -->
-        <section id="start-view" class="view-section hidden">
-            <div class="content-box">
-                <h1>컬러 타일 멀티플레이</h1>
-                <button id="btn-enter-lobby" class="btn-large">로비 입장하기</button>
-            </div>
-        </section>
-
-        <!-- 대기실 — 시작부터 바로 표시 -->
-        <section id="lobby-view" class="view-section active">
-            <div class="lobby-header">
-                <h2>대기실</h2>
-                <span id="my-nickname-display">내 닉네임: </span>
-            </div>
-
-            <div class="lobby-content">
-                <div id="room-action-area">
-
-                    <!-- 닉네임 설정 섹션 -->
-                    <div class="room-create-section">
-                        <h3>내 닉네임</h3>
-                        <div class="input-group" style="margin-bottom: 0;">
-                            <input type="text" id="start-nickname-input"
-                                placeholder="닉네임 입력 (비우면 Guest 자동 배정)" maxlength="10"
-                                style="margin-bottom: 0;">
-                            <button id="btn-set-nickname">설정</button>
-                        </div>
-                        <p id="current-nickname-display"
-                            style="color: var(--accent); margin: 8px 0 0; font-size: 14px; text-align: left;"></p>
-                    </div>
-
-                    <div class="divider"></div>
-
-                    <div class="room-create-section">
-                        <h3>새로운 게임 시작</h3>
-                        <button id="btn-create-room" class="btn-large">방 만들기</button>
-                    </div>
-
-                    <div class="divider">또는</div>
-
-                    <div class="room-join-section">
-                        <h3>방 코드로 참여</h3>
-                        <div class="input-group">
-                            <input type="text" id="room-code-input"
-                                placeholder="방 코드 6자리 (예: A1B2C3)" maxlength="6"
-                                style="text-transform: uppercase; margin-bottom: 0;">
-                            <button id="btn-join-room">입장하기</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 방 내부 영역 -->
-                <div id="room-detail-area" class="hidden">
-                    <div class="room-detail-header">
-                        <h3 id="current-room-title">방 코드: <span id="display-room-code"
-                                style="color: var(--accent);"></span></h3>
-                        <button id="btn-leave-room">나가기</button>
-                    </div>
-
-                    <div class="nickname-setup" style="display: flex; gap: 10px; margin-bottom: 20px;">
-                        <input type="text" id="in-room-nickname"
-                            placeholder="사용할 닉네임 (최대 10자)" maxlength="10">
-                        <button id="btn-update-nickname">변경</button>
-                    </div>
-
-                    <h4 style="text-align: left; margin-bottom: 10px; color: var(--text-muted);">현재 접속자</h4>
-                    <ul id="player-list"></ul>
-
-                    <div class="room-actions">
-                        <button id="btn-start-game" class="hidden">게임 시작 (방장 전용)</button>
-                        <button id="btn-ready" class="hidden">준비 완료</button>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- 게임 진행 페이지 -->
-        <section id="game-view" class="view-section hidden">
-            <div class="game-header">
-                <div class="timer">남은 시간: <span id="time-left">120</span>초</div>
-            </div>
-
-            <div class="game-layout">
-                <aside id="ranking-board">
-                    <h3>실시간 순위</h3>
-                    <ul id="live-ranking"></ul>
-                </aside>
-
-                <main class="canvas-container">
-                    <canvas id="game-canvas" width="800" height="600"></canvas>
-                </main>
-            </div>
-        </section>
-
-        <!-- 결과 페이지 -->
-        <section id="result-view" class="view-section hidden">
-            <div class="content-box">
-                <h2>게임 종료!</h2>
-
-                <div id="final-ranking"></div>
-
-                <div class="result-controls">
-                    <button id="btn-return-room" class="hidden">방 돌아가기</button>
-                    <button id="btn-exit-game">나가기</button>
-                </div>
-            </div>
-
-            <!-- 멤버용 리매치 팝업 -->
-            <div id="rematch-popup" class="modal hidden">
-                <div class="modal-content">
-                    <p>방장이 게임을 다시 준비하고 있습니다.<br>방으로 돌아가시겠습니까?</p>
-                    <div class="modal-actions">
-                        <button id="btn-popup-return">돌아가기</button>
-                        <button id="btn-popup-exit">나가기</button>
-                    </div>
-                </div>
-            </div>
-        </section>
-
+<div id="screen-lobby" class="screen active">
+    <h1>타일 클리어 로비</h1>
+    <button id="btn-create-room" class="btn-secondary">새 방 생성 (방장)</button>
+    <div class="divider">또는</div>
+    <div class="form-group">
+        <input type="text" id="input-room-code" placeholder="방 코드 (4자리)" maxlength="4" autocomplete="off">
+        <button id="btn-join-room">방 접속</button>
     </div>
+</div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
-    <script src="js/network.js"></script>
-    <script src="js/game.js"></script>
-    <script src="js/main.js"></script>
+<div id="screen-room" class="screen">
+    <h2 id="room-title">대기실</h2>
+    <p id="room-status">상태 메시지</p>
+    <div id="game-board"></div>
+    <button id="btn-leave-room" style="margin-top: 20px;">로비로 돌아가기</button>
+</div>
+
+<script type="module" src="./main.js"></script>
 </body>
-
 </html>
