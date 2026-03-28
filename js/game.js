@@ -1,7 +1,6 @@
 /**
  * js/game.js
  * 역할: [구조] 게임 규칙 데이터 보관 및 [흐름] 캔버스 렌더링.
- * 원칙: 네트워크 통신이나 UI 전환 로직이 섞이지 않음.
  */
 
 const GAME_CONFIG = {
@@ -12,7 +11,6 @@ const GAME_CONFIG = {
     COLORS: ['#ff4757', '#1e90ff', '#2ed573', '#ffa502', '#9c88ff', '#ff61a6']
 };
 
-// [구조] 상태 데이터
 class GameState {
     constructor() {
         this.grid = [];
@@ -22,33 +20,31 @@ class GameState {
     }
 }
 
-// [흐름] 연산 및 렌더링
 class GameManager {
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext('2d');
         this.state = new GameState();
-        this.isHost = false; // main.js에서 게임 시작 시 주입
+        this.isHost = false; // 기본 구조 상태
 
         this.canvas.width = GAME_CONFIG.COLS * (GAME_CONFIG.TILE_SIZE + GAME_CONFIG.GAP) + GAME_CONFIG.GAP;
         this.canvas.height = GAME_CONFIG.ROWS * (GAME_CONFIG.TILE_SIZE + GAME_CONFIG.GAP) + GAME_CONFIG.GAP;
 
         this.canvas.addEventListener('mousedown', (e) => this.handleCanvasClick(e));
 
-        // 외부에서 주입할 콜백
         this.onScoreChanged = (newScore) => {};
-        this.onGameEnded = (finalScores) => {};
+        this.onTimeUp = (finalHostScore) => {};
     }
 
-    initGame(seed) {
+    // [흐름] isHost를 매개변수로 받아 이번 게임의 실행 컨텍스트로 적용
+    initGame(seed, isHost) {
+        this.isHost = isHost; 
         this.state.score = 0;
         this.state.timeLeft = 120;
         this.state.isPlaying = true;
 
         if (this.timerInterval) clearInterval(this.timerInterval);
 
-        // seed 기반 결정론적 PRNG (xorshift32)
-        // 모든 클라이언트가 동일한 seed를 받으면 완전히 동일한 그리드 생성
         let s = Math.floor(seed * 4294967296) >>> 0;
         if (s === 0) s = 1;
         const rand = () => {
@@ -78,29 +74,19 @@ class GameManager {
                 clearInterval(this.timerInterval);
                 this.state.isPlaying = false;
 
-                if (this.isHost) {
-                    // 방장만 게임 종료 처리
-                    // 1. 내 최종 점수 강제 전송 (throttle 무시)
-                    networkManager.sendScore(appState.userId, this.state.score, true);
-                    // 2. 최종 점수 목록을 모든 멤버에게 브로드캐스트
-                    const finalScores = Array.from(networkManager.players.values());
-                    networkManager.sendGameEnd(finalScores);
-                    // 3. 방장 본인 결과 화면 전환
-                    if (this.onGameEnded) this.onGameEnded(finalScores);
+                if (this.isHost && this.onTimeUp) {
+                    this.onTimeUp(this.state.score); // 방장일 때 최종 점수만 넘겨서 이벤트 발생
                 }
-                // 멤버는 game_end 브로드캐스트 수신 시 main.js의 onGameEndedBroadcast에서 처리
             }
         }, 1000);
     }
 
-    // 강제 종료: 방장의 game_end 브로드캐스트 수신 시 멤버 측에서 호출
-    forceEnd(finalScores) {
+    forceEnd() {
         if (this.timerInterval) clearInterval(this.timerInterval);
         this.state.isPlaying = false;
-        if (this.onGameEnded) this.onGameEnded(finalScores);
+        // 멤버는 결과 화면 전환(showResult)을 main.js에서 직접 하므로 여기서 부르지 않습니다.
     }
 
-    // 핵심 룰 검증
     handleCanvasClick(event) {
         if (!this.state.isPlaying) return;
 
@@ -116,7 +102,6 @@ class GameManager {
 
         let hitTiles = [];
 
-        // 십자 탐색
         for (let r = row - 1; r >= 0; r--) { if (this.state.grid[r][col] !== null) { hitTiles.push({ r, c: col, color: this.state.grid[r][col] }); break; } }
         for (let r = row + 1; r < GAME_CONFIG.ROWS; r++) { if (this.state.grid[r][col] !== null) { hitTiles.push({ r, c: col, color: this.state.grid[r][col] }); break; } }
         for (let c = col - 1; c >= 0; c--) { if (this.state.grid[row][c] !== null) { hitTiles.push({ r: row, c, color: this.state.grid[row][c] }); break; } }
@@ -130,15 +115,12 @@ class GameManager {
         if (tilesToRemove.length > 0) {
             tilesToRemove.forEach(t => { this.state.grid[t.r][t.c] = null; });
 
-            // 중력: 파괴된 열의 타일을 아래로 내림
             const affectedCols = [...new Set(tilesToRemove.map(t => t.c))];
             affectedCols.forEach(c => {
-                // 해당 열에서 타일만 아래에서 위 순서로 수집
                 const tiles = [];
                 for (let r = GAME_CONFIG.ROWS - 1; r >= 0; r--) {
                     if (this.state.grid[r][c] !== null) tiles.push(this.state.grid[r][c]);
                 }
-                // 아래부터 채우고 나머지는 null
                 for (let r = GAME_CONFIG.ROWS - 1; r >= 0; r--) {
                     this.state.grid[r][c] = tiles.length > 0 ? tiles.shift() : null;
                 }

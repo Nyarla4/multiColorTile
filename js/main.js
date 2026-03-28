@@ -94,7 +94,6 @@ function refreshLiveRanking() {
         .join('');
 }
 
-// 결과 화면 렌더링 공통 함수
 function showResult(finalScores) {
     switchView('result');
     if (appState.isHost) {
@@ -109,8 +108,17 @@ function showResult(finalScores) {
 }
 
 function initEvents() {
+    // [구조] 게임 종료 시 호출될 콜백을 흐름과 관계없이 사전에 구조적으로 연결합니다.
+    gameInstance.onGameEnded = showResult;
 
-    // --- 접속자 목록 렌더링 ---
+    gameInstance.onScoreChanged = (newScore) => {
+        if (networkManager.players.has(appState.userId)) {
+            networkManager.players.get(appState.userId).score = newScore;
+        }
+        refreshLiveRanking();
+        networkManager.sendScore(appState.userId, newScore);
+    };
+
     networkManager.onPlayerListUpdated = (players) => {
         ui.playerList.innerHTML = '';
         players.forEach(p => {
@@ -131,18 +139,17 @@ function initEvents() {
     };
 
     networkManager.onGameStarted = (seed) => {
-        // 방장 여부를 gameInstance에 주입 — 타이머 단일 진실의 원천 결정
-        gameInstance.isHost = appState.isHost;
         switchView('game');
-        gameInstance.initGame(seed);
-
-        // 방장: 타이머 종료 시 forceEnd 대신 sendGameEnd에서 onGameEnded 직접 호출 (game.js에서 처리)
-        gameInstance.onGameEnded = showResult;
+        // [흐름] 게임 실행에 필요한 컨텍스트(isHost)를 매개변수로 주입합니다.
+        gameInstance.initGame(seed, appState.isHost); 
     };
 
-    // 멤버: 방장의 game_end 브로드캐스트 수신 → 타이머 강제 중단 후 결과 화면
     networkManager.onGameEndedBroadcast = (finalScores) => {
-        gameInstance.forceEnd(finalScores);
+        // 1. 구조 제어: 게임 내부의 타이머와 동작만 중지시킵니다. (매개변수 없음)
+        gameInstance.forceEnd();
+
+        // 2. 흐름 제어: 전달받은 최종 점수를 가지고 main.js가 직접 결과 화면을 띄웁니다.
+        showResult(finalScores);
     };
 
     networkManager.onRematchRequested = (newRoomId) => {
@@ -152,16 +159,6 @@ function initEvents() {
         }
     };
 
-    // 내 점수 변경 → 로컬 Map 즉시 반영 + 브로드캐스트
-    gameInstance.onScoreChanged = (newScore) => {
-        if (networkManager.players.has(appState.userId)) {
-            networkManager.players.get(appState.userId).score = newScore;
-        }
-        refreshLiveRanking();
-        networkManager.sendScore(appState.userId, newScore);
-    };
-
-    // 타인 점수 수신
     networkManager.onScoreUpdated = (userId, newScore) => {
         if (networkManager.players.has(userId)) {
             networkManager.players.get(userId).score = newScore;
@@ -169,7 +166,6 @@ function initEvents() {
         refreshLiveRanking();
     };
 
-    // 방장 퇴장 처리
     networkManager.onHostLeft = () => {
         alert('방장이 방을 나갔습니다. 대기실로 돌아갑니다.');
         appState.isHost = false;
@@ -181,7 +177,6 @@ function initEvents() {
         toggleRoomDetail(false);
     };
 
-    // 채널 연결 오류 처리
     networkManager.onConnectionError = () => {
         alert('서버 연결에 실패했습니다. 대기실로 돌아갑니다.');
         appState.isHost = false;
@@ -190,7 +185,6 @@ function initEvents() {
         toggleRoomDetail(false);
     };
 
-    // --- 닉네임 설정 ---
     ui.btnSetNickname.addEventListener('click', () => {
         const name = ui.startNicknameInput.value.trim();
         appState.nickname = name || ('Guest_' + Math.floor(Math.random() * 1000));
@@ -200,7 +194,6 @@ function initEvents() {
         ui.myNicknameDisplay.innerText = `내 닉네임: ${appState.nickname}`;
     });
 
-    // --- 방 만들기 ---
     document.getElementById('btn-create-room').addEventListener('click', async () => {
         const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
         const success = await networkManager.createRoomDB(newCode, appState.userId);
@@ -208,14 +201,14 @@ function initEvents() {
             appState.isHost = true;
             appState.roomId = newCode;
             appState.isReady = true;
-            networkManager.joinRoom(appState.roomId, appState.userId, getMyPresenceState());
+            // 비동기 흐름 제어: 방 접속이 완벽히 끝난 후 UI를 전환합니다.
+            await networkManager.joinRoom(appState.roomId, appState.userId, getMyPresenceState());
             toggleRoomDetail(true);
         } else {
             alert("방 생성에 실패했습니다.");
         }
     });
 
-    // --- 방 입장 ---
     ui.btnJoinRoom.addEventListener('click', async () => {
         const code = ui.roomCodeInput.value.trim().toUpperCase();
         if (code.length !== 6) { alert("6자리 방 코드를 입력해주세요."); return; }
@@ -224,14 +217,14 @@ function initEvents() {
             appState.isHost = false;
             appState.roomId = code;
             appState.isReady = false;
-            networkManager.joinRoom(appState.roomId, appState.userId, getMyPresenceState());
+            // 비동기 흐름 제어
+            await networkManager.joinRoom(appState.roomId, appState.userId, getMyPresenceState());
             toggleRoomDetail(true);
         } else {
             alert("존재하지 않거나 게임이 시작된 방입니다.");
         }
     });
 
-    // --- 인-룸 닉네임 변경 ---
     ui.btnUpdateNickname.addEventListener('click', () => {
         const newName = ui.inRoomNickname.value.trim();
         if (newName) {
@@ -243,7 +236,6 @@ function initEvents() {
         }
     });
 
-    // --- 준비 ---
     ui.btnReady.addEventListener('click', () => {
         appState.isReady = !appState.isReady;
         ui.btnReady.innerText = appState.isReady ? '준비 취소' : '준비 완료';
@@ -251,13 +243,11 @@ function initEvents() {
         networkManager.updatePresenceState(getMyPresenceState());
     });
 
-    // --- 방 나가기 ---
     document.getElementById('btn-leave-room').addEventListener('click', async () => {
         const wasHost = appState.isHost;
         const roomId = appState.roomId;
 
         if (wasHost) {
-            // 채널이 살아있는 동안 브로드캐스트 먼저
             networkManager.sendHostLeaving();
             await networkManager.deleteRoomDB(roomId);
         }
@@ -272,7 +262,6 @@ function initEvents() {
         toggleRoomDetail(false);
     });
 
-    // --- 게임 시작 ---
     ui.btnStartGame.addEventListener('click', () => {
         const playersArray = Array.from(networkManager.players.values());
         const members = playersArray.filter(p => !p.isHost);
@@ -287,28 +276,25 @@ function initEvents() {
         }
 
         const seed = Math.random();
-        networkManager.sendGameStart(seed);              // 1. 멤버들에게 시작 신호
-        networkManager.onGameStarted(seed);              // 2. 방장 본인 즉시 이동
-        networkManager.updateRoomStatusPlaying(appState.roomId); // 3. DB 상태 변경
+        networkManager.sendGameStart(seed);
+        networkManager.onGameStarted(seed);
+        networkManager.updateRoomStatusPlaying(appState.roomId);
     });
 
-    // --- 방 돌아가기 (리매치, 방장) ---
     ui.btnReturnRoom.addEventListener('click', async () => {
         const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
         const success = await networkManager.createRoomDB(newCode, appState.userId);
         if (!success) { alert('방 생성에 실패했습니다.'); return; }
 
-        // sendRematchRequest는 joinRoom() 이전에 호출해야 기존 채널로 전송됨
         networkManager.sendRematchRequest(newCode);
 
         appState.roomId = newCode;
         appState.isReady = true;
-        networkManager.joinRoom(appState.roomId, appState.userId, getMyPresenceState());
+        await networkManager.joinRoom(appState.roomId, appState.userId, getMyPresenceState());
         switchView('lobby');
         toggleRoomDetail(true);
     });
 
-    // --- 결과에서 나가기 ---
     document.getElementById('btn-exit-game').addEventListener('click', () => {
         networkManager.leaveRoom();
         appState.isHost = false;
@@ -317,16 +303,14 @@ function initEvents() {
         toggleRoomDetail(false);
     });
 
-    // --- 리매치 팝업: 돌아가기 (멤버) ---
-    document.getElementById('btn-popup-return').addEventListener('click', () => {
+    document.getElementById('btn-popup-return').addEventListener('click', async () => {
         ui.rematchPopup.classList.add('hidden');
         appState.isReady = false;
-        networkManager.joinRoom(appState.roomId, appState.userId, getMyPresenceState());
+        await networkManager.joinRoom(appState.roomId, appState.userId, getMyPresenceState());
         switchView('lobby');
         toggleRoomDetail(true);
     });
 
-    // --- 리매치 팝업: 나가기 ---
     document.getElementById('btn-popup-exit').addEventListener('click', () => {
         ui.rematchPopup.classList.add('hidden');
         networkManager.leaveRoom();
@@ -335,6 +319,20 @@ function initEvents() {
         switchView('lobby');
         toggleRoomDetail(false);
     });
+
+    gameInstance.onTimeUp = (finalHostScore) => {
+        // 흐름 제어: 방장의 최종 점수 전송 -> 결과 취합 -> 브로드캐스트 -> UI 전환
+        networkManager.sendScore(appState.userId, finalHostScore, true);
+        const finalScores = Array.from(networkManager.players.values());
+        networkManager.sendGameEnd(finalScores);
+        showResult(finalScores);
+    };
+
+    // 강제 종료 브로드캐스트 수신 시 (멤버)
+    networkManager.onGameEndedBroadcast = (finalScores) => {
+        gameInstance.forceEnd(); // finalScores를 game.js에 넘길 필요 없이 게임만 중단시킴
+        showResult(finalScores); // 결과 출력은 main.js가 직접 수행
+    };
 }
 
 window.onload = () => {
@@ -348,14 +346,11 @@ window.onload = () => {
     ui.myNicknameDisplay.innerText = `내 닉네임: ${appState.nickname}`;
     initEvents();
 
-    // Ghost 방지: 탭 종료/새로고침 직전 퇴장 처리
-    // beforeunload는 async 불가 → 동기 신호만 전송
     window.addEventListener('beforeunload', () => {
         if (!appState.roomId || !networkManager.currentChannel) return;
         if (appState.isHost) {
             networkManager.sendHostLeaving();
         }
-        // untrack()으로 서버에 presence 제거 신호 전송
         try { networkManager.currentChannel.untrack(); } catch (e) {}
     });
 };
