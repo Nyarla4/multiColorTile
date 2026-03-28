@@ -28,6 +28,7 @@ class GameManager {
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext('2d');
         this.state = new GameState();
+        this.isHost = false; // main.js에서 게임 시작 시 주입
 
         this.canvas.width = GAME_CONFIG.COLS * (GAME_CONFIG.TILE_SIZE + GAME_CONFIG.GAP) + GAME_CONFIG.GAP;
         this.canvas.height = GAME_CONFIG.ROWS * (GAME_CONFIG.TILE_SIZE + GAME_CONFIG.GAP) + GAME_CONFIG.GAP;
@@ -44,13 +45,12 @@ class GameManager {
         this.state.timeLeft = 120;
         this.state.isPlaying = true;
 
-        // 기존 타이머 있으면 초기화
         if (this.timerInterval) clearInterval(this.timerInterval);
 
         // seed 기반 결정론적 PRNG (xorshift32)
         // 모든 클라이언트가 동일한 seed를 받으면 완전히 동일한 그리드 생성
         let s = Math.floor(seed * 4294967296) >>> 0;
-        if (s === 0) s = 1; // xorshift는 0이 고정점이므로 방어
+        if (s === 0) s = 1;
         const rand = () => {
             s ^= s << 13;
             s ^= s >>> 17;
@@ -68,8 +68,8 @@ class GameManager {
         );
         this.render();
 
-        // 타이머 시작
         const timeEl = document.getElementById('time-left');
+
         this.timerInterval = setInterval(() => {
             this.state.timeLeft--;
             if (timeEl) timeEl.textContent = this.state.timeLeft;
@@ -77,12 +77,27 @@ class GameManager {
             if (this.state.timeLeft <= 0) {
                 clearInterval(this.timerInterval);
                 this.state.isPlaying = false;
-                if (this.onGameEnded) {
+
+                if (this.isHost) {
+                    // 방장만 게임 종료 처리
+                    // 1. 내 최종 점수 강제 전송 (throttle 무시)
+                    networkManager.sendScore(appState.userId, this.state.score, true);
+                    // 2. 최종 점수 목록을 모든 멤버에게 브로드캐스트
                     const finalScores = Array.from(networkManager.players.values());
-                    this.onGameEnded(finalScores);
+                    networkManager.sendGameEnd(finalScores);
+                    // 3. 방장 본인 결과 화면 전환
+                    if (this.onGameEnded) this.onGameEnded(finalScores);
                 }
+                // 멤버는 game_end 브로드캐스트 수신 시 main.js의 onGameEndedBroadcast에서 처리
             }
         }, 1000);
+    }
+
+    // 강제 종료: 방장의 game_end 브로드캐스트 수신 시 멤버 측에서 호출
+    forceEnd(finalScores) {
+        if (this.timerInterval) clearInterval(this.timerInterval);
+        this.state.isPlaying = false;
+        if (this.onGameEnded) this.onGameEnded(finalScores);
     }
 
     // 핵심 룰 검증
@@ -115,13 +130,26 @@ class GameManager {
         if (tilesToRemove.length > 0) {
             tilesToRemove.forEach(t => { this.state.grid[t.r][t.c] = null; });
 
+            // 중력: 파괴된 열의 타일을 아래로 내림
+            const affectedCols = [...new Set(tilesToRemove.map(t => t.c))];
+            affectedCols.forEach(c => {
+                // 해당 열에서 타일만 아래에서 위 순서로 수집
+                const tiles = [];
+                for (let r = GAME_CONFIG.ROWS - 1; r >= 0; r--) {
+                    if (this.state.grid[r][c] !== null) tiles.push(this.state.grid[r][c]);
+                }
+                // 아래부터 채우고 나머지는 null
+                for (let r = GAME_CONFIG.ROWS - 1; r >= 0; r--) {
+                    this.state.grid[r][c] = tiles.length > 0 ? tiles.shift() : null;
+                }
+            });
+
             let points = tilesToRemove.length * 10;
             if (tilesToRemove.length >= 3) points += 20;
 
             this.state.score += points;
             this.render();
 
-            // 흐름 위임
             this.onScoreChanged(this.state.score);
         }
     }
