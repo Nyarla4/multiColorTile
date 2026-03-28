@@ -1,8 +1,6 @@
 /**
- * css/style.css
- * 역할: 시각적 구조 정의 및 뷰 전환을 위한 상태 클래스(.hidden) 제공
+ * style.css
  */
-
 :root {
     --bg-dark: #1a1a2e;
     --bg-panel: #16213e;
@@ -22,45 +20,49 @@ body {
     background-color: var(--bg-dark);
     color: var(--text-main);
     margin: 0;
-    padding: 0;
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
 }
 
-#app-container {
-    width: 100%;
-    max-width: 1100px;
-    padding: 20px;
-    box-sizing: border-box;
-}
-
-/* [구조] 핵심 상태 클래스 (흐름 제어용) */
-.hidden { display: none !important; }
-
-.view-section {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 100%;
-    animation: fadeIn 0.3s ease-in-out;
-}
+/* 화면 전환 (흐름 제어) */
+.screen { display: none; flex-direction: column; align-items: center; width: 100%; animation: fadeIn 0.3s ease-in-out; }
+.screen.active { display: flex; }
 
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
-.content-box {
+/* 공통 패널 구조 */
+.panel {
     background-color: var(--bg-panel);
-    padding: 40px;
+    padding: 30px;
     border-radius: 12px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
     text-align: center;
     width: 100%;
-    max-width: 400px;
+    max-width: 450px;
+    box-sizing: border-box;
 }
+
+h1, h2, h3 { margin-top: 0; color: var(--text-main); }
+.text-muted { color: var(--text-muted); font-size: 0.9em; }
+
+/* 입력 폼 및 버튼 */
+.form-group { display: flex; gap: 10px; margin: 20px 0; justify-content: center; }
+input[type="text"] {
+    padding: 12px;
+    border: 2px solid var(--bg-canvas);
+    border-radius: 6px;
+    background-color: var(--bg-dark);
+    color: white;
+    font-size: 16px;
+    outline: none;
+    text-align: center;
+}
+input[type="text"]:focus { border-color: var(--primary); }
 
 button {
     padding: 12px 20px;
@@ -73,132 +75,49 @@ button {
     background-color: var(--primary);
     color: white;
 }
+button:hover { background-color: var(--primary-hover); transform: translateY(-2px); }
+button:disabled { background-color: #555; color: #888; cursor: not-allowed; transform: none; }
 
-button:hover:not(:disabled) { background-color: var(--primary-hover); transform: translateY(-2px); }
-button:disabled { background-color: #555; color: #888; cursor: not-allowed; }
+.btn-secondary { background-color: var(--accent); color: #111; }
+.btn-secondary:hover { background-color: var(--accent-hover); }
+.btn-danger { background-color: var(--danger); color: white; }
+.btn-danger:hover { background-color: var(--danger-hover); }
 
-#btn-exit-game, #btn-leave-room, #btn-popup-exit { background-color: var(--danger); }
-#btn-exit-game:hover:not(:disabled), #btn-leave-room:hover:not(:disabled), #btn-popup-exit:hover:not(:disabled) { background-color: var(--danger-hover); }
-#btn-start-game, #btn-enter-lobby { background-color: var(--accent); color: #111; }
-#btn-start-game:hover:not(:disabled), #btn-enter-lobby:hover:not(:disabled) { background-color: var(--accent-hover); }
+/* 리스트 (접속자, 랭킹) */
+ul.list-box {
+    list-style: none; padding: 10px; margin: 15px 0;
+    background-color: var(--bg-dark); border-radius: 8px;
+    max-height: 250px; overflow-y: auto; text-align: left;
+}
+ul.list-box li {
+    padding: 10px; margin-bottom: 5px;
+    background-color: var(--bg-canvas); border-radius: 4px;
+}
 
-input[type="text"] {
-    width: 100%;
-    padding: 12px;
-    border: 2px solid var(--bg-canvas);
-    border-radius: 6px;
+/* 게임 보드 */
+.game-info-bar { display: flex; justify-content: space-between; font-size: 1.2rem; font-weight: bold; margin-bottom: 15px; width: 100%; color: var(--accent); }
+#game-board {
+    display: grid;
+    grid-template-columns: repeat(23, 30px);
+    grid-template-rows: repeat(15, 30px);
+    gap: 2px;
     background-color: var(--bg-dark);
-    color: white;
-    font-size: 16px;
-    margin-bottom: 20px;
-    box-sizing: border-box;
-    outline: none;
-    text-align: center;
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
 }
-input[type="text"]:focus { border-color: var(--primary); }
+.tile { width: 100%; height: 100%; border-radius: 4px; box-sizing: border-box; transition: transform 0.1s; }
 
-.lobby-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    max-width: 800px;
-    margin-bottom: 20px;
-    border-bottom: 2px solid var(--bg-panel);
-    padding-bottom: 10px;
+/* 결과 화면 레이아웃 */
+.result-layout { display: flex; gap: 20px; width: 100%; max-width: 900px; text-align: left; }
+.result-col { flex: 1; background-color: var(--bg-panel); padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+.result-card { padding: 12px; margin-bottom: 8px; background-color: var(--bg-canvas); border-radius: 6px; cursor: pointer; transition: transform 0.2s; border: 1px solid transparent; }
+.result-card:hover { transform: scale(1.02); border-color: var(--primary); }
+.result-card.first-place { background-color: #ffb8b80d; border: 1px solid #d4af37; color: #ffd700; font-weight: bold; }
+
+/* 미니 리플레이 보드 */
+#replay-board {
+    display: grid; grid-template-columns: repeat(23, 15px); grid-template-rows: repeat(15, 15px);
+    gap: 1px; background-color: var(--bg-dark); padding: 5px; border-radius: 4px; margin: 15px auto;
 }
-
-.lobby-content { display: flex; justify-content: center; width: 100%; }
-
-#room-action-area {
-    background-color: var(--bg-panel);
-    padding: 30px;
-    border-radius: 12px;
-    width: 100%;
-    max-width: 500px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-    text-align: center;
-}
-
-.room-create-section, .room-join-section {
-    padding: 10px 0;
-}
-
-.btn-large {
-    width: 100%;
-    padding: 15px;
-    font-size: 18px;
-}
-
-.divider {
-    display: flex;
-    align-items: center;
-    color: var(--text-muted);
-    margin: 20px 0;
-}
-
-.divider::before, .divider::after {
-    content: "";
-    flex: 1;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    margin: 0 15px;
-}
-
-.input-group {
-    display: flex;
-    gap: 10px;
-}
-
-.input-group input {
-    margin-bottom: 0;
-    flex: 1;
-}
-
-.room-list-header, .room-detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.room-list-header h3, .room-detail-header h3 { margin: 0; }
-
-ul { list-style: none; padding: 0; margin: 0 0 20px 0; max-height: 300px; overflow-y: auto; }
-li { background-color: var(--bg-canvas); padding: 15px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
-
-.room-actions { display: flex; justify-content: flex-end; gap: 10px; }
-
-.game-header { display: flex; justify-content: center; font-size: 24px; font-weight: bold; margin-bottom: 20px; color: var(--accent); }
-.game-layout { display: flex; gap: 20px; align-items: flex-start; justify-content: center; width: 100%; }
-
-#ranking-board {
-    background-color: var(--bg-panel);
-    padding: 20px;
-    border-radius: 12px;
-    width: 250px;
-    height: 600px;
-    box-sizing: border-box;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-}
-
-#ranking-board h3 { margin-top: 0; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
-
-.canvas-container { background-color: var(--bg-panel); padding: 10px; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
-canvas { background-color: var(--bg-canvas); border-radius: 8px; display: block; cursor: crosshair; }
-
-.result-controls { display: flex; justify-content: center; gap: 15px; margin-top: 20px; }
-
-.modal {
-    position: fixed;
-    top: 0; left: 0; width: 100vw; height: 100vh;
-    background-color: rgba(0, 0, 0, 0.75);
-    display: flex; justify-content: center; align-items: center;
-    z-index: 1000;
-}
-
-.modal-content {
-    background-color: var(--bg-panel);
-    padding: 40px;
-    border-radius: 12px;
-    text-align: center;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
-    max-width: 400px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.modal-content p { font-size: 18px; line-height: 1.5; margin-bottom: 25px; }
-.modal-actions { display: flex; justify-content: center; gap: 15px; }
+.mini-tile { width: 100%; height: 100%; border-radius: 2px; }

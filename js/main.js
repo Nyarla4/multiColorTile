@@ -92,13 +92,13 @@ class LobbyUI {
     // 🚀 [흐름] 점수 기반으로 내림차순 정렬하여 순위표 렌더링
     renderLeaderboard(players) {
         const sorted = [...players].sort((a, b) => (b.score || 0) - (a.score || 0));
-        this.leaderboard.innerHTML = '<strong style="display:block; margin-bottom:5px;">🏆 실시간 순위</strong>';
-
+        this.leaderboard.innerHTML = '';
         sorted.forEach((p, index) => {
             const row = document.createElement('div');
             const displayName = p.nickname || p.id;
-            row.innerText = `${index + 1}등: ${displayName} - ${p.score || 0}점`;
-            if (p.isLeaving) row.style.textDecoration = 'line-through'; // 나간 사람 취소선 처리
+            row.innerText = `${index === 0 ? '🥇' : index+1+'.'} ${displayName} (${p.score || 0})`;
+            row.style.whiteSpace = 'nowrap';
+            if (p.isLeaving) row.style.textDecoration = 'line-through';
             this.leaderboard.appendChild(row);
         });
     }
@@ -109,10 +109,7 @@ class LobbyUI {
         gridData.forEach((color, index) => {
             const cell = document.createElement('div');
             cell.dataset.index = index;
-            cell.style.width = '30px';
-            cell.style.height = '30px';
-            cell.style.boxSizing = 'border-box';
-            cell.style.borderRadius = '4px';
+            cell.className = 'tile'; // 🚀 CSS 클래스로 크기 제어
             this._applyCell(cell, color);
             this.gameBoard.appendChild(cell);
         });
@@ -128,10 +125,10 @@ class LobbyUI {
     _applyCell(cell, color) {
         if (color) {
             cell.style.backgroundColor = color;
-            cell.style.boxShadow = 'inset 0 0 5px rgba(0,0,0,0.2)';
+            cell.style.boxShadow = 'inset 0 0 8px rgba(0,0,0,0.4)';
             cell.style.cursor = 'default';
         } else {
-            cell.style.backgroundColor = '#eaeaea';
+            cell.style.backgroundColor = 'var(--bg-canvas)'; // 🚀 빈 칸 다크 모드 색상
             cell.style.boxShadow = '';
             cell.style.cursor = 'pointer';
         }
@@ -153,23 +150,14 @@ class LobbyUI {
 
         sorted.forEach((p, index) => {
             const card = document.createElement('div');
-            card.style.padding = '10px';
-            card.style.margin = '5px 0';
-            card.style.background = index === 0 ? '#fff3cd' : '#fff';
-            card.style.border = index === 0 ? '2px solid #ffeeba' : '1px solid #ccc';
-            card.style.borderRadius = '4px';
-            card.style.cursor = 'pointer';
-            card.style.fontWeight = index === 0 ? 'bold' : 'normal';
+            card.className = index === 0 ? 'result-card first-place' : 'result-card'; // 🚀 CSS 클래스 활용
             
             const displayName = p.nickname || p.id;
             card.innerText = `${index + 1}등: ${displayName} (${p.score || 0}점) ${index === 0 ? '👑' : ''}`;
 
-            card.addEventListener('mouseenter', () => card.style.transform = 'scale(1.02)');
-            card.addEventListener('mouseleave', () => card.style.transform = 'scale(1)');
-
             card.addEventListener('click', () => {
-                Array.from(this.resultLeaderboard.children).forEach(c => c.style.borderColor = '#ccc');
-                card.style.borderColor = '#007bff';
+                Array.from(this.resultLeaderboard.children).forEach(c => c.style.borderColor = 'transparent');
+                card.style.borderColor = 'var(--primary)';
                 onPlayerSelectCallback(p);
             });
 
@@ -179,7 +167,7 @@ class LobbyUI {
 
     // 🚀 [구조] 미니 보드(리플레이 용) 초기 렌더링
     setupReplayUI(playerData, initialSeed) {
-        this.replayTitle.innerText = `🔍 [ ${playerData.id} ] 님의 플레이 복기`;
+        this.replayTitle.innerText = `[ ${playerData.nickname || playerData.id} ] 님의 플레이`;
         this.replayContent.style.display = 'flex';
         this.replayTime.innerText = 'Time: 120';
         this.replayScore.innerText = 'Score: 0';
@@ -187,11 +175,8 @@ class LobbyUI {
         this.replayBoard.innerHTML = '';
         initialSeed.forEach((color) => {
             const cell = document.createElement('div');
-            cell.style.width = '15px';
-            cell.style.height = '15px';
-            cell.style.boxSizing = 'border-box';
-            cell.style.borderRadius = '2px';
-            cell.style.backgroundColor = color ? color : '#eaeaea';
+            cell.className = 'mini-tile'; // 🚀 CSS 클래스로 크기 제어
+            cell.style.backgroundColor = color ? color : 'var(--bg-canvas)';
             this.replayBoard.appendChild(cell);
         });
     }
@@ -200,7 +185,7 @@ class LobbyUI {
     updateReplayCell(index, color) {
         const cell = this.replayBoard.children[index];
         if (cell) {
-            cell.style.backgroundColor = color ? color : '#eaeaea';
+            cell.style.backgroundColor = color ? color : 'var(--bg-canvas)';
             if (!color) {
                 cell.style.transform = 'scale(0.8)';
                 setTimeout(() => cell.style.transform = 'scale(1)', 100);
