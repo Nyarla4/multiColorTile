@@ -9,7 +9,14 @@ export class RoomManager {
         this.currentRoomCode = null;
         this.isHost = false;
         this.myId = 'P_' + crypto.randomUUID().slice(0, 8);
+        this.myNickname = localStorage.getItem('tileclear_nickname') || this.myId;
         this.players = []; // 접속자 목록 배열
+    }
+
+    // 유효성 검사 제거 — 순수 저장만 담당
+    setNickname(name) {
+        this.myNickname = name;
+        localStorage.setItem('tileclear_nickname', name);
     }
 
     // [흐름] 데이터 처리
@@ -27,9 +34,10 @@ export class RoomManager {
         this.isHost = hostStatus;
     }
 
+    // nickname 포함 — 방장 초기 객체에도 닉네임 반영
     addPlayer(id, isHost) {
         if (!this.players.find(p => p.id === id)) {
-            this.players.push({ id: id, isHost: isHost, isReady: false });
+            this.players.push({ id, nickname: this.myNickname, isHost, isReady: false });
         }
     }
 

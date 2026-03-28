@@ -32,6 +32,10 @@ class LobbyUI {
         this.replayScore = document.getElementById('replay-score');
         this.btnPlayReplay = document.getElementById('btn-play-replay');
         this.btnBackToRoom = document.getElementById('btn-back-to-room');
+
+        // 닉네임 UI (screen-room 안에 있음)
+        this.inputNickname = document.getElementById('input-nickname');
+        this.nicknameStatus = document.getElementById('nickname-status');
     }
 
     switchScreen(screenId) {
@@ -58,7 +62,8 @@ class LobbyUI {
             const li = document.createElement('li');
             li.style.padding = "5px 0";
 
-            let text = p.id;
+            const displayName = p.nickname || p.id;
+            let text = displayName;
             if (p.id === myId) text += " (나)";
             if (p.isHost) text += " 👑 방장";
             else text += p.isReady ? " ✅ 준비완료" : " ⏳ 대기중";
@@ -91,7 +96,8 @@ class LobbyUI {
 
         sorted.forEach((p, index) => {
             const row = document.createElement('div');
-            row.innerText = `${index + 1}등: ${p.id} - ${p.score || 0}점`;
+            const displayName = p.nickname || p.id;
+            row.innerText = `${index + 1}등: ${displayName} - ${p.score || 0}점`;
             if (p.isLeaving) row.style.textDecoration = 'line-through'; // 나간 사람 취소선 처리
             this.leaderboard.appendChild(row);
         });
@@ -154,8 +160,9 @@ class LobbyUI {
             card.style.borderRadius = '4px';
             card.style.cursor = 'pointer';
             card.style.fontWeight = index === 0 ? 'bold' : 'normal';
-
-            card.innerText = `${index + 1}등: ${p.id} (${p.score || 0}점) ${index === 0 ? '👑' : ''}`;
+            
+            const displayName = p.nickname || p.id;
+            card.innerText = `${index + 1}등: ${displayName} (${p.score || 0}점) ${index === 0 ? '👑' : ''}`;
 
             card.addEventListener('mouseenter', () => card.style.transform = 'scale(1.02)');
             card.addEventListener('mouseleave', () => card.style.transform = 'scale(1)');
@@ -205,6 +212,20 @@ class LobbyUI {
         this.replayTime.innerText = `Time: ${time}`;
         this.replayScore.innerText = `Score: ${score}`;
     }
+
+    initNicknameInput(currentNickname) {
+        this.inputNickname.value = currentNickname;
+    }
+
+    getNicknameInput() {
+        return this.inputNickname.value.trim();
+    }
+
+    showNicknameStatus(message, isError = false) {
+        this.nicknameStatus.innerText = message;
+        this.nicknameStatus.style.color = isError ? '#dc3545' : '#28a745';
+        setTimeout(() => { this.nicknameStatus.innerText = ''; }, 2000);
+    }
 }
 
 // [구조] 중앙 애플리케이션 컨트롤러
@@ -243,6 +264,11 @@ class AppController {
         this.ui.btnPlayReplay.addEventListener('click', () => {
             if (this.selectedPlayerData) this.startReplaySimulation(this.selectedPlayerData);
         });
+
+        document.getElementById('btn-save-nickname').addEventListener('click', () => this.handleSaveNickname());
+        document.getElementById('input-nickname').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') this.handleSaveNickname();
+        });
     }
 
     setupNetworkCallbacks() {
@@ -269,11 +295,16 @@ class AppController {
         this.roomManager.addPlayer(this.roomManager.myId, true);
 
         // 내 데이터를 들고 채널 접속
-        this.network.connectToRoom(newCode, { id: this.roomManager.myId, isHost: true });
+        this.network.connectToRoom(newCode, {
+            id: this.roomManager.myId,
+            nickname: this.roomManager.myNickname,
+            isHost: true
+        });
 
         this.ui.setupButtons(true);
         this.ui.renderPlayers(this.roomManager.players, this.roomManager.myId);
         this.ui.updateRoomView(this.roomManager.currentRoomCode, true);
+        this.ui.initNicknameInput(this.roomManager.myNickname); // ← 방 진입 시 초기화
         this.ui.switchScreen('screen-room');
     }
 
@@ -287,16 +318,15 @@ class AppController {
         // 내 데이터를 들고 Supabase 채널 접속
         this.network.connectToRoom(code, {
             id: this.roomManager.myId,
+            nickname: this.roomManager.myNickname,
             isHost: false,
             isReady: false
         });
 
-        // ❌ 아래 코드가 남아있었다면 삭제해 주세요! (에러의 원인)
-        // this.network.requestSync(); 
-
         this.ui.setupButtons(false);
         this.ui.updateRoomView(this.roomManager.currentRoomCode, false);
-        this.ui.switchScreen('screen-room'); // 이제 여기까지 무사히 흐름이 도달합니다!
+        this.ui.initNicknameInput(this.roomManager.myNickname); // ← 방 진입 시 초기화
+        this.ui.switchScreen('screen-room');
     }
 
     handleReadyToggle() {
@@ -314,6 +344,7 @@ class AppController {
         // 서버에 상태 갱신 요청 (다른 사람들의 화면은 1~2초 뒤에 바뀜)
         this.network.updateMyState({
             id: this.roomManager.myId,
+            nickname: this.roomManager.myNickname, // ← 추가
             isHost: false,
             isReady: desiredReadyState,
             updatedAt: Date.now()
@@ -338,6 +369,23 @@ class AppController {
 
         // 3. 방장 자신도 로컬에서 게임 시작
         this.startGameProcess(seed);
+    }
+
+    handleSaveNickname() {
+        const name = this.ui.getNicknameInput();
+        if (!name) {
+            this.ui.showNicknameStatus('닉네임을 입력해주세요.', true);
+            return;
+        }
+
+        this.roomManager.setNickname(name);
+        this.ui.showNicknameStatus(`"${name}" 으로 저장됐습니다.`);
+
+        // Presence 즉시 갱신 — 다른 플레이어 화면에 바로 반영
+        const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
+        if (me) {
+            this.network.updateMyState({ ...me, nickname: name, updatedAt: Date.now() });
+        }
     }
 
     // 🚀 [흐름 추가] 실제 게임 화면 전환 및 렌더링 프로세스
