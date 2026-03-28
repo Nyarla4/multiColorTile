@@ -105,7 +105,7 @@
             <button id="btn-join-room">방 접속</button>
         </div>
     </div>
-
+    
     <div id="screen-room" class="screen">
         <h2 id="room-title">대기실</h2>
         <p id="room-status">상태 메시지</p>
@@ -122,19 +122,21 @@
             <button id="btn-start" style="display: none; background-color: #007bff; color: white;">게임 시작</button>
         </div>
 
+        <button id="btn-leave-room" style="margin-top: 20px; background-color: #dc3545;">로비로 돌아가기</button>
+    </div>
+
+    <div id="screen-game" class="screen">
         <div id="game-info"
-            style="display: none; width: 100%; justify-content: space-between; margin-bottom: 10px; font-weight: bold; font-size: 1.2rem; color: #333;">
+            style="width: 100%; display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: bold; font-size: 1.2rem; color: #333;">
             <div id="ui-time">Time: 120</div>
             <div id="ui-score">Score: 0</div>
         </div>
 
         <div id="leaderboard"
-            style="display: none; width: 100%; margin-bottom: 10px; padding: 10px; background: #e9ecef; border-radius: 4px; border: 1px solid #ced4da;">
+            style="width: 100%; margin-bottom: 10px; padding: 10px; background: #e9ecef; border-radius: 4px; border: 1px solid #ced4da;">
         </div>
 
         <div id="game-board"></div>
-
-        <button id="btn-leave-room" style="margin-top: 20px; background-color: #dc3545;">로비로 돌아가기</button>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

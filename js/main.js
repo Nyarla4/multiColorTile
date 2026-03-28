@@ -7,23 +7,26 @@ class LobbyUI {
     constructor() {
         this.screenLobby = document.getElementById('screen-lobby');
         this.screenRoom = document.getElementById('screen-room');
+        this.screenGame = document.getElementById('screen-game'); // 🚀 [구조 연동] 새로 추가된 게임 화면
+        
         this.inputRoomCode = document.getElementById('input-room-code');
         this.roomTitle = document.getElementById('room-title');
         this.roomStatus = document.getElementById('room-status');
         this.playerList = document.getElementById('player-list');
         this.btnReady = document.getElementById('btn-ready');
         this.btnStart = document.getElementById('btn-start');
-        this.gameBoard = document.getElementById('game-board'); // [구조 추가]
-        // 🚀 [구조 연동] 새로 추가한 HTML 요소 연결
+        
         this.gameInfo = document.getElementById('game-info');
         this.uiTime = document.getElementById('ui-time');
         this.uiScore = document.getElementById('ui-score');
         this.leaderboard = document.getElementById('leaderboard');
+        this.gameBoard = document.getElementById('game-board');
     }
 
     switchScreen(screenId) {
         this.screenLobby.classList.remove('active');
         this.screenRoom.classList.remove('active');
+        this.screenGame.classList.remove('active'); 
         document.getElementById(screenId).classList.add('active');
     }
 
@@ -62,12 +65,6 @@ class LobbyUI {
             this.btnReady.style.display = 'block';
             this.btnStart.style.display = 'none';
         }
-    }
-
-    // 🚀 [흐름] 인게임 UI 켜기 및 업데이트
-    showGameUI() {
-        this.gameInfo.style.display = 'flex';
-        this.leaderboard.style.display = 'block';
     }
 
     updateStats(time, score) {
@@ -232,30 +229,23 @@ class AppController {
 
     // 🚀 [흐름 추가] 실제 게임 화면 전환 및 렌더링 프로세스
     startGameProcess(seed) {
-        // 대기실 UI 숨기기
-        document.getElementById('btn-ready').style.display = 'none';
-        document.getElementById('btn-start').style.display = 'none';
-        document.getElementById('room-status').innerText = "게임 진행 중!";
-        document.getElementById('player-list').parentElement.style.display = 'none'; // 대기실 명단 숨김
-
         this.isGameRunning = true;
         this.board = new Board(GameConfig);
         this.board.initializeWithSeed(seed);
-
-        // 🚀 [흐름] 타이머 및 점수 초기화
         this.scoreTimer = new ScoreTimer(GameConfig);
-        this.ui.showGameUI();
-        this.ui.updateStats(this.scoreTimer.time, this.scoreTimer.score);
-
-        // 내 초기 점수(0점)를 서버에 덮어씌움
+        
+        // 내 초기 점수를 0점으로 세팅하고, 준비(isReady) 상태를 강제로 해제합니다. (다음 게임을 위해)
         const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
         if (me) {
-            this.network.updateMyState({ ...me, score: 0 });
+            this.network.updateMyState({ ...me, score: 0, isReady: false, updatedAt: Date.now() });
         }
 
+        this.ui.updateStats(this.scoreTimer.time, this.scoreTimer.score);
         this.ui.renderBoard(this.board.grid, (index) => this.handleCellClick(index));
-
-        // 🚀 [흐름] 1초마다 타이머 틱(Tick) 작동
+        
+        // 요소들을 일일이 숨기는 대신, 깔끔하게 화면 통째로 전환!
+        this.ui.switchScreen('screen-game');
+        
         this.scoreTimer.intervalId = setInterval(() => this.gameLoop(), 1000);
     }
 
@@ -298,11 +288,22 @@ class AppController {
     endGame() {
         this.isGameRunning = false;
         clearInterval(this.scoreTimer.intervalId);
-
-        // 타일 클릭을 막기 위해 렌더링만 갱신 (콜백 제거)
-        this.ui.renderBoard(this.board.grid, () => { });
-
-        setTimeout(() => alert(`게임 종료! 당신의 최종 점수: ${this.scoreTimer.score}점`), 100);
+        
+        // 콜백 제거하여 클릭 막기
+        this.ui.renderBoard(this.board.grid, () => {});
+        
+        setTimeout(() => {
+            alert(`게임 종료! 당신의 최종 점수: ${this.scoreTimer.score}점`);
+            
+            // 확인 버튼을 누르면 대기실 화면으로 복귀
+            this.ui.switchScreen('screen-room');
+            this.ui.updateRoomView(this.roomManager.currentRoomCode, this.roomManager.isHost);
+            
+            // 모든 플레이어의 isReady 상태가 풀렸으므로, 방장은 다시 대기 상태가 됨
+            if (this.roomManager.isHost) {
+                this.ui.setupButtons(true);
+            }
+        }, 100);
     }
 
     // [흐름] 방 퇴장 로직
