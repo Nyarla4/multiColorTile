@@ -31,7 +31,10 @@ class NetworkClient {
         const channelName = `room_${roomId}`;
         // presence key 제거 — payload의 userId로 직접 식별
         this.currentChannel = this.supabase.channel(channelName, {
-            config: { broadcast: { self: false } }
+            config: {
+                presence: { key: userId },
+                broadcast: { self: false }
+            }
         });
 
         // presenceState()를 단일 진실의 원천으로 사용하는 헬퍼
