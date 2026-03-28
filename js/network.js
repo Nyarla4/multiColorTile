@@ -68,7 +68,7 @@ export class NetworkClient {
     }
 
     connectToRoom(roomCode, myData) {
-        this.channel = window.supabase.channel('room_' + roomCode, {
+        this.channel = supabase.channel('room_' + roomCode, {
             config: { presence: { key: myData.id } },
         });
 
@@ -109,7 +109,7 @@ export class NetworkClient {
             // [핵심 해결] 지우기 요청이 서버에 닿을 수 있도록 0.2초만 기다려줍니다 (유령 방지)
             await new Promise(resolve => setTimeout(resolve, 200));
 
-            await window.supabase.removeChannel(this.channel);
+            await supabase.removeChannel(this.channel);
             this.channel = null;
         }
     }
