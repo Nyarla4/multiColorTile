@@ -98,6 +98,7 @@ export class NetworkClient {
     async updateMyState(newData) {
         if (this.channel) {
             this.myLastData = newData; // 상태를 바꿀 때마다 내 최신 상태 갱신
+            await this.channel.untrack();
             await this.channel.track(newData);
         }
     }
@@ -119,14 +120,14 @@ export class NetworkClient {
                 // 🚀 [핵심 로직] 통신을 끊기 직전, 다른 사람들에게 "나 진짜 나간다" 라고 확정 데이터를 쏴줍니다.
                 if (this.myLastData) {
                     await this.channel.track({ ...this.myLastData, isLeaving: true });
+                    await new Promise(resolve => setTimeout(resolve, 200));
                 }
 
-                // 이 확정 데이터가 서버와 다른 클라이언트에게 도달할 수 있도록 아주 잠깐(0.2초)만 숨을 고릅니다.
-                await new Promise(resolve => setTimeout(resolve, 200));
-
-                // 이후 안전하게 구독 취소 및 채널 삭제
+                // 2. 채널 구독 해지
                 await this.channel.unsubscribe();
                 await supabase.removeChannel(this.channel);
+                
+                await supabase.removeAllChannels();
             } catch (error) {
                 console.error("[Network] Disconnect Error:", error);
             } finally {
