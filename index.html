@@ -35,8 +35,19 @@
 <div id="screen-room" class="screen">
     <h2 id="room-title">대기실</h2>
     <p id="room-status">상태 메시지</p>
-    <div id="game-board"></div>
-    <button id="btn-leave-room" style="margin-top: 20px;">로비로 돌아가기</button>
+
+    <div style="width: 100%; margin: 15px 0; text-align: left;">
+        <h3 style="margin-bottom: 5px;">접속자 목록</h3>
+        <ul id="player-list" style="list-style-type: none; padding: 10px; margin: 0; border: 1px solid #ccc; border-radius: 4px; background: #fafafa; min-height: 50px;">
+            </ul>
+    </div>
+
+    <div style="display: flex; gap: 10px; margin-top: 10px;">
+        <button id="btn-ready" class="btn-secondary">준비</button>
+        <button id="btn-start" style="display: none;">게임 시작</button>
+    </div>
+
+    <button id="btn-leave-room" style="margin-top: 20px; background-color: #dc3545;">로비로 돌아가기</button>
 </div>
 
 <script type="module" src="./js/main.js"></script>

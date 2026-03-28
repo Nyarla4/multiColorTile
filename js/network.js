@@ -3,6 +3,9 @@ export class RoomManager {
     constructor() {
         this.currentRoomCode = null;
         this.isHost = false;
+        // 나 자신의 임시 ID 부여
+        this.myId = 'Player_' + Math.floor(Math.random() * 1000); 
+        this.players = []; // 접속자 목록 배열
     }
 
     // [흐름] 데이터 처리
@@ -20,9 +23,25 @@ export class RoomManager {
         this.isHost = hostStatus;
     }
     
+    addPlayer(id, isHost) {
+        this.players.push({ id: id, isHost: isHost, isReady: false });
+    }
+
+    removePlayer(id) {
+        this.players = this.players.filter(p => p.id !== id);
+    }
+
+    toggleReady(id) {
+        const player = this.players.find(p => p.id === id);
+        if (player && !player.isHost) {
+            player.isReady = !player.isReady;
+        }
+    }
+
     clearRoomState() {
         this.currentRoomCode = null;
         this.isHost = false;
+        this.players = [];
     }
 }
 
