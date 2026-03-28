@@ -61,3 +61,38 @@ export class Board {
         return toDestroy;
     }
 }
+
+// game.js 의 맨 아래에 추가
+
+// [흐름] 23x15 그리드에 200개의 짝수 타일이 섞인 시드 배열 생성
+export function generateSeed(config) {
+    const totalCells = config.cols * config.rows;
+    const seed = Array(totalCells).fill(null);
+    const tileColors = [];
+
+    // 1. 색상 짝수 배열 생성 (100쌍 = 200개)
+    for (let i = 0; i < config.totalTiles / 2; i++) {
+        const randomColor = config.colors[Math.floor(Math.random() * config.colors.length)];
+        tileColors.push(randomColor, randomColor);
+    }
+
+    // 2. 전체 인덱스(0~344) 배열 생성 후 셔플
+    const allIndices = Array.from({length: totalCells}, (_, i) => i);
+    for (let i = allIndices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [allIndices[i], allIndices[j]] = [allIndices[j], allIndices[i]];
+    }
+    
+    // 3. 200개의 위치 선정 후 셔플된 색상 배치
+    const selectedIndices = allIndices.slice(0, config.totalTiles);
+    for (let i = tileColors.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [tileColors[i], tileColors[j]] = [tileColors[j], tileColors[i]];
+    }
+
+    for (let i = 0; i < config.totalTiles; i++) {
+        seed[selectedIndices[i]] = tileColors[i];
+    }
+
+    return seed;
+}

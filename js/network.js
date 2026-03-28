@@ -65,6 +65,7 @@ export class NetworkClient {
     constructor() {
         this.channel = null;
         this.onSyncState = null;
+        this.onGameStart = null; // [구조 추가] 게임 시작 이벤트 수신 콜백
         this.myLastData = null; // [구조 추가] 나의 가장 최신 상태를 기억해둡니다.
     }
 
@@ -94,6 +95,11 @@ export class NetworkClient {
             if (this.onSyncState) this.onSyncState(currentPlayers);
         });
 
+        // 🚀 [흐름 추가] 방장이 쏜 '게임 시작(Broadcast)' 이벤트를 수신
+        this.channel.on('broadcast', { event: 'game_start' }, (payload) => {
+            if (this.onGameStart) this.onGameStart(payload.payload.seed);
+        });
+
         this.channel.subscribe(async (status) => {
             if (status === 'SUBSCRIBED') {
                 console.log(`[Network] Supabase ${roomCode} 채널 접속 완료`);
@@ -106,6 +112,17 @@ export class NetworkClient {
         if (this.channel) {
             this.myLastData = newData; // 상태를 바꿀 때마다 내 최신 상태 갱신
             await this.channel.track(newData);
+        }
+    }
+    
+    // 🚀 [흐름 추가] 방장이 시드 배열을 담아 방 전체에 게임 시작을 알림
+    async broadcastGameStart(seedData) {
+        if (this.channel) {
+            await this.channel.send({
+                type: 'broadcast',
+                event: 'game_start',
+                payload: { seed: seedData }
+            });
         }
     }
 
