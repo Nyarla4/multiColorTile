@@ -54,6 +54,7 @@ class LobbyUI {
 
         // 대기실
         this.roomTitle      = document.getElementById('room-title');
+        this.btnCopyLink    = document.getElementById('btn-copy-link'); // 🚀 [추가] 링크 복사 버튼 연결
         this.roomStatus     = document.getElementById('room-status');
         this.playerList     = document.getElementById('player-list');
         this.btnReady       = document.getElementById('btn-ready');
@@ -372,6 +373,8 @@ class AppController {
 
         this.bindEvents();
         this.setupNetworkCallbacks();
+
+        this.checkUrlAndAutoJoin();
     }
 
     // [흐름] 이벤트 바인딩 — 앱 초기화 시 1회 실행
@@ -394,6 +397,39 @@ class AppController {
         // 🚀 [추가] 버전 뱃지 클릭 시 모달 열기, 닫기 버튼 클릭 시 모달 닫기
         this.ui.btnVersion?.addEventListener('click', () => this.ui.showChangelog());
         this.ui.btnChangelogClose?.addEventListener('click', () => this.ui.hideChangelog());
+
+        this.ui.btnCopyLink?.addEventListener('click', () => this.handleCopyLink());
+    }
+
+    handleCopyLink() {
+        const code = this.roomManager.currentRoomCode;
+        if (!code) return;
+
+        const inviteLink = `${window.location.origin}${window.location.pathname}?room=${code}`;
+
+        navigator.clipboard.writeText(inviteLink).then(() => {
+            alert('🔗 초대 링크가 복사되었습니다!\n친구에게 공유해보세요.');
+        }).catch(() => {
+            alert('복사에 실패했습니다. 브라우저 권한을 확인해주세요.');
+        });
+    }
+
+    // 🚀 [추가 4] 주소창을 읽어 자동 접속하는 로직
+    async checkUrlAndAutoJoin() {
+        const params = new URLSearchParams(window.location.search);
+        const roomCode = params.get('room');
+
+        // 주소창에 ?room=ABCD 형태로 4자리 코드가 있다면
+        if (roomCode && roomCode.length === 4) {
+            // 입력창에 코드를 몰래 적어두고
+            this.ui.inputRoomCode.value = roomCode.toUpperCase();
+            
+            // 방 접속 버튼을 누른 것과 똑같이 실행
+            await this.handleJoinRoom();
+
+            // 새로고침 시 계속 접속되는 것을 막기 위해 주소창에서 ?room=ABCD 꼬리표 떼기
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
     }
 
     // [흐름] 네트워크 콜백 설정
