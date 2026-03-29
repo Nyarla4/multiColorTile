@@ -475,6 +475,16 @@ class AppController {
 
         // 🚀 [추가] 토글 스위치를 누르면 방장의 상태(Presence) 업데이트
         this.ui.toggleForceStart?.addEventListener('change', (e) => this.handleForceStartToggle(e.target.checked));
+
+        // 🚀 [추가] 브라우저 창/탭을 닫거나 새로고침할 때 '나가기' 처리 실행
+        window.addEventListener('beforeunload', () => {
+            // 현재 방에 접속 중인 경우에만 실행
+            if (this.roomManager.currentRoomCode) {
+                // 이전에 구현해둔 네트워크 해제 로직을 즉시 호출합니다.
+                // 0.15초의 지연 시간을 포함해 확성기를 쏘고 나가는 로직이 실행됩니다.
+                this.network.disconnect();
+            }
+        });
     }
     
     // 🚀 [추가] 방장이 토글을 변경했을 때의 흐름
