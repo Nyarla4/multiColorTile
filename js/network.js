@@ -110,7 +110,37 @@ export class NetworkClient {
         this.channel.subscribe(async (status) => {
             if (status === 'SUBSCRIBED') {
                 console.log(`[Network] ${roomCode} 채널 접속 완료`);
-                await this.channel.track(this.myLastData);
+
+                if (myData.isHost) {
+                    // 🚀 [조건 1] 방장: 접속 즉시 자신의 상태를 등록하여 방을 "생성"합니다.
+                    await this.channel.track(this.myLastData);
+                    resolve(true);
+                } else {
+                    // 🚀 [조건 2] 게스트: 접속 후 0.5초 대기하며 방장 존재 여부를 확인합니다.
+                    setTimeout(async () => {
+                        const state = this.channel.presenceState();
+                        let hasHost = false;
+                        for (const key in state) {
+                            if (state[key].some(p => p.isHost && !p.isLeaving)) {
+                                hasHost = true;
+                                break;
+                            }
+                        }
+
+                        if (hasHost) {
+                            // 방장이 존재하면 정식으로 내 상태를 등록하고 입장 허가!
+                            await this.channel.track(this.myLastData);
+                            resolve(true);
+                        } else {
+                            // 방장이 없으면 튕겨냄 (유령방 접속 차단)
+                            await this.channel.unsubscribe();
+                            await window.supabase.removeChannel(this.channel);
+                            this.channel = null;
+                            this.myLastData = null;
+                            reject(new Error('ROOM_NOT_FOUND'));
+                        }
+                    }, 500);
+                }
             }
         });
     }

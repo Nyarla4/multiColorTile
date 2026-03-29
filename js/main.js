@@ -453,47 +453,67 @@ class AppController {
     }
 
     // [흐름] 방 생성
-    handleCreateRoom() {
+    async handleCreateRoom() {
         const newCode = this.roomManager.generateRoomCode();
-        this.roomManager.setRoomState(newCode, true);
-        this.roomManager.addPlayer(this.roomManager.myId, true);
 
-        this.network.connectToRoom(newCode, {
-            id:       this.roomManager.myId,
-            nickname: this.roomManager.myNickname,
-            isHost:   true,
-        });
+        try {
+            // 통신이 완전히 연결될 때까지 기다림
+            await this.network.connectToRoom(newCode, {
+                id:       this.roomManager.myId,
+                nickname: this.roomManager.myNickname,
+                isHost:   true,
+            });
 
-        this.ui.setupButtons(true);
-        this.ui.renderPlayers(
-            this.roomManager.players,
-            this.roomManager.myId,
-            this.roomManager.isHost,
-            (targetId) => this.handleForceResetNickname(targetId)
-        );
-        this.ui.updateRoomView(this.roomManager.currentRoomCode, true);
-        this.ui.initNicknameInput(this.roomManager.myNickname);
-        this.ui.switchScreen('screen-room');
+            // 성공 시에만 로컬 데이터 세팅 및 화면 전환
+            this.roomManager.setRoomState(newCode, true);
+            this.roomManager.addPlayer(this.roomManager.myId, true);
+            
+            this.ui.setupButtons(true);
+            this.ui.renderPlayers(
+                this.roomManager.players,
+                this.roomManager.myId,
+                this.roomManager.isHost,
+                (targetId) => this.handleForceResetNickname(targetId)
+            );
+            this.ui.updateRoomView(newCode, true);
+            this.ui.initNicknameInput(this.roomManager.myNickname);
+            this.ui.switchScreen('screen-room');
+            
+        } catch (error) {
+            alert('방 생성에 실패했습니다. 다시 시도해주세요.');
+        }
     }
 
     // [흐름] 방 접속
-    handleJoinRoom() {
+    async handleJoinRoom() {
         const code = this.ui.getInputValue();
         if (code.length !== 4) { alert('4자리 방 코드를 정확히 입력해주세요.'); return; }
 
-        this.roomManager.setRoomState(code, false);
+        try {
+            // 방장 존재 여부를 0.5초간 검증
+            await this.network.connectToRoom(code, {
+                id:       this.roomManager.myId,
+                nickname: this.roomManager.myNickname,
+                isHost:   false,
+                isReady:  false,
+            });
 
-        this.network.connectToRoom(code, {
-            id:       this.roomManager.myId,
-            nickname: this.roomManager.myNickname,
-            isHost:   false,
-            isReady:  false,
-        });
-
-        this.ui.setupButtons(false);
-        this.ui.updateRoomView(this.roomManager.currentRoomCode, false);
-        this.ui.initNicknameInput(this.roomManager.myNickname);
-        this.ui.switchScreen('screen-room');
+            // 🚀 검증 성공! 정식 입장 처리
+            this.roomManager.setRoomState(code, false);
+            this.ui.setupButtons(false);
+            this.ui.updateRoomView(code, false);
+            this.ui.initNicknameInput(this.roomManager.myNickname);
+            this.ui.switchScreen('screen-room');
+            
+        } catch (error) {
+            // 🚀 검증 실패!
+            if (error.message === 'ROOM_NOT_FOUND') {
+                alert('존재하지 않는 방입니다. 코드를 다시 확인해주세요.');
+            } else {
+                alert('방 접속에 실패했습니다.');
+            }
+            this.roomManager.clearRoomState(); // 접속 실패 시 찌꺼기 싹 비우기
+        }
     }
 
     // [흐름] 닉네임 저장 및 Presence 즉시 갱신
@@ -581,7 +601,9 @@ class AppController {
         const targetTiles = this.board.getMatchedTilesToDestroy(index);
 
         if (targetTiles.length === 0) {
-            this.scoreTimer.addScore(-1);
+            if (this.scoreTimer.score > 0) {
+                this.scoreTimer.addScore(-1);
+            }
             this.soundFX.playError();
         }
         else {
