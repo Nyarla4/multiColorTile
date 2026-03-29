@@ -9,14 +9,13 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 export class RoomManager {
     constructor() {
         this.currentRoomCode = null;
-        this.isHost = false;
-        this.myId = 'P_' + crypto.randomUUID().slice(0, 8);
-        this.myNickname = localStorage.getItem('tileclear_nickname') || this.myId;
-        this.players = [];
-        this.leftPlayers = new Set(); // 🚀 [부활] 블랙리스트
+        this.isHost          = false;
+        this.myId            = 'P_' + crypto.randomUUID().slice(0, 8);
+        this.myNickname      = localStorage.getItem('tileclear_nickname') || this.myId;
+        this.players         = [];
+        this.leftPlayers     = new Set();
     }
 
-    // [흐름] 닉네임 저장 (유효성 검사는 호출부에서 처리)
     setNickname(name) {
         this.myNickname = name;
         localStorage.setItem('tileclear_nickname', name);
@@ -33,7 +32,7 @@ export class RoomManager {
 
     setRoomState(code, isHost) {
         this.currentRoomCode = code;
-        this.isHost = isHost;
+        this.isHost          = isHost;
     }
 
     addPlayer(id, isHost) {
@@ -44,8 +43,8 @@ export class RoomManager {
 
     clearRoomState() {
         this.currentRoomCode = null;
-        this.isHost = false;
-        this.players = [];
+        this.isHost          = false;
+        this.players         = [];
         this.leftPlayers.clear();
         this.myId = 'P_' + crypto.randomUUID().slice(0, 8);
     }
@@ -60,17 +59,19 @@ export class RoomManager {
     }
 }
 
+
 // [구조] Supabase 채널 통신 전담
 export class NetworkClient {
     constructor() {
-        this.channel = null;
-        this.myLastData = null;
-        this.onSyncState = null;
-        this.onGameStart = null;
+        this.channel              = null;
+        this.myLastData           = null;
+        this.onSyncState          = null;
+        this.onGameStart          = null;
         this.onForceNicknameReset = null;
-        this.onPlayerLeft = null; // 🚀 [부활] 퇴장 알림 콜백
+        this.onPlayerLeft         = null;
     }
 
+    // [흐름] 채널 접속 — Promise로 성공/실패를 명확히 반환
     connectToRoom(roomCode, myData) {
         return new Promise((resolve, reject) => {
             this.myLastData = myData;
@@ -80,7 +81,7 @@ export class NetworkClient {
             });
 
             const syncCurrentState = () => {
-                const state = this.channel.presenceState();
+                const state          = this.channel.presenceState();
                 const currentPlayers = [];
                 for (const key in state) {
                     const arr = state[key];
@@ -92,8 +93,8 @@ export class NetworkClient {
                 if (this.onSyncState) this.onSyncState(currentPlayers);
             };
 
-            this.channel.on('presence', { event: 'sync' }, syncCurrentState);
-            this.channel.on('presence', { event: 'leave' }, syncCurrentState);
+            this.channel.on('presence',  { event: 'sync'  }, syncCurrentState);
+            this.channel.on('presence',  { event: 'leave' }, syncCurrentState);
             this.channel.on('broadcast', { event: 'game_start' }, (payload) => {
                 if (this.onGameStart) this.onGameStart(payload.payload.seed);
             });
@@ -105,52 +106,47 @@ export class NetworkClient {
             });
 
             this.channel.subscribe(async (status) => {
-                if (status === 'SUBSCRIBED') {
-                    console.log(`[Network] ${roomCode} 채널 접속 완료`);
+                if (status !== 'SUBSCRIBED') return;
 
-                    if (myData.isHost) {
-                        // 방장: 접속 즉시 상태 등록
-                        await this.channel.track(this.myLastData);
-                        resolve(true); // 🚀 정상 작동
-                    } else {
-                        // 게스트: 0.1초마다 방장 존재 확인 (최대 1.5초)
-                        let checkAttempts = 0;
-                        const checkHostInterval = setInterval(async () => {
-                            try {
-                                checkAttempts++;
-                                const state = this.channel.presenceState();
-                                let hasHost = false;
-                                
-                                for (const key in state) {
-                                    if (state[key].some(p => p.isHost && !p.isLeaving)) {
-                                        hasHost = true;
-                                        break;
-                                    }
-                                }
+                console.log(`[Network] ${roomCode} 채널 접속 완료`);
 
-                                if (hasHost) {
-                                    clearInterval(checkHostInterval);
-                                    await this.channel.track(this.myLastData);
-                                    resolve(true); // 🚀 정상 입장
-                                } else if (checkAttempts >= 15) { 
-                                    clearInterval(checkHostInterval);
-                                    await this.channel.unsubscribe();
-                                    await supabase.removeChannel(this.channel); 
-                                    this.channel = null;
-                                    this.myLastData = null;
-                                    reject(new Error('ROOM_NOT_FOUND')); // 🚀 에러 발생 없이 정상적으로 catch로 넘어감
-                                }
-                            } catch (err) {
-                                clearInterval(checkHostInterval);
-                                reject(err);
-                            }
-                        }, 100);
-                    }
+                if (myData.isHost) {
+                    await this.channel.track(this.myLastData);
+                    resolve(true);
+                    return;
                 }
+
+                // 게스트: 방장 존재 확인 (최대 1.5초, 100ms 간격)
+                let attempts = 0;
+                const CHECK_INTERVAL = 100;
+                const MAX_ATTEMPTS   = 15;
+
+                const checkHostInterval = setInterval(async () => {
+                    try {
+                        attempts++;
+                        const state   = this.channel.presenceState();
+                        const hasHost = Object.values(state).some(arr =>
+                            arr.some(p => p.isHost && !p.isLeaving)
+                        );
+
+                        if (hasHost) {
+                            clearInterval(checkHostInterval);
+                            await this.channel.track(this.myLastData);
+                            resolve(true);
+                        } else if (attempts >= MAX_ATTEMPTS) {
+                            clearInterval(checkHostInterval);
+                            await this._cleanup();
+                            reject(new Error('ROOM_NOT_FOUND'));
+                        }
+                    } catch (err) {
+                        clearInterval(checkHostInterval);
+                        reject(err);
+                    }
+                }, CHECK_INTERVAL);
             });
         });
     }
-    
+
     async updateMyState(newData) {
         if (!this.channel) return;
         this.myLastData = newData;
@@ -160,50 +156,48 @@ export class NetworkClient {
     async broadcastGameStart(seedData) {
         if (!this.channel) return;
         await this.channel.send({
-            type: 'broadcast',
-            event: 'game_start',
+            type:    'broadcast',
+            event:   'game_start',
             payload: { seed: seedData },
         });
     }
 
-    // 🚀 [흐름 추가] 방장이 특정 대상에게 닉네임 초기화를 명령하는 방송 전송
     async broadcastForceNicknameReset(targetId) {
-        if (this.channel) {
-            await this.channel.send({
-                type: 'broadcast',
-                event: 'force_reset_nickname',
-                payload: { targetId: targetId }
-            });
-        }
-    }
-    
-    // 🚀 [부활] 내가 나가기 직전에 쏘는 다이렉트 확성기
-    async broadcastPlayerLeft(targetId) {
-        if (this.channel) {
-            await this.channel.send({
-                type: 'broadcast',
-                event: 'player_left',
-                payload: { id: targetId }
-            });
-        }
+        if (!this.channel) return;
+        await this.channel.send({
+            type:    'broadcast',
+            event:   'force_reset_nickname',
+            payload: { targetId },
+        });
     }
 
-    // 🚀 확성기를 쏘고 0.15초 대기 후 안전하게 퇴장
+    async broadcastPlayerLeft(id) {
+        if (!this.channel) return;
+        await this.channel.send({
+            type:    'broadcast',
+            event:   'player_left',
+            payload: { id },
+        });
+    }
+
     async disconnect() {
         if (!this.channel) return;
         try {
             if (this.myLastData) {
-                // 서버 동기화를 기다리지 않고 방 전체에 다이렉트 방송 발사!
                 await this.broadcastPlayerLeft(this.myLastData.id);
-                await new Promise(resolve => setTimeout(resolve, 150)); 
+                await new Promise(resolve => setTimeout(resolve, 150));
             }
-            await this.channel.unsubscribe();
-            await supabase.removeChannel(this.channel);
+            await this._cleanup();
         } catch (error) {
             console.error('[Network] Disconnect Error:', error);
-        } finally {
-            this.channel = null;
-            this.myLastData = null;
         }
+    }
+
+    // [내부] 채널 구독 해지 및 참조 초기화
+    async _cleanup() {
+        await this.channel.unsubscribe();
+        await supabase.removeChannel(this.channel);
+        this.channel    = null;
+        this.myLastData = null;
     }
 }

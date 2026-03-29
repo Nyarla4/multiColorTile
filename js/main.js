@@ -5,8 +5,7 @@ import { RoomManager, NetworkClient } from './network.js';
 // [구조] Web Audio API 기반 효과음 전담
 class SoundFX {
     constructor() {
-        // 첫 재생 시점에 지연 생성 — 브라우저 정책상 사용자 인터랙션 전 생성 경고 방지
-        this.ctx = null;
+        this.ctx = null; // 첫 재생 시점에 지연 생성 — 브라우저 정책 대응
     }
 
     _getContext() {
@@ -17,52 +16,27 @@ class SoundFX {
         return this.ctx;
     }
 
-    playPop() {
-        const ctx = this._getContext();
+    _play({ type, freqStart, freqEnd, gainStart, duration }) {
+        const ctx  = this._getContext();
         if (ctx.state === 'suspended') ctx.resume();
 
         const osc  = ctx.createOscillator();
         const gain = ctx.createGain();
-
         osc.connect(gain);
         gain.connect(ctx.destination);
 
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(600, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.1);
-
-        gain.gain.setValueAtTime(0.3, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+        osc.type = type;
+        osc.frequency.setValueAtTime(freqStart, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(freqEnd, ctx.currentTime + duration);
+        gain.gain.setValueAtTime(gainStart, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
 
         osc.start();
-        osc.stop(ctx.currentTime + 0.1);
+        osc.stop(ctx.currentTime + duration);
     }
 
-    playError() {
-        const ctx = this._getContext();
-        if (ctx.state === 'suspended') ctx.resume();
-
-        const osc  = ctx.createOscillator();
-        const gain = ctx.createGain();
-
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-
-        // 1. 파형 설정: 부저 소리에 어울리는 거친 느낌의 톱니파(sawtooth) 사용
-        osc.type = 'sawtooth';
-
-        // 2. 주파수(음높이): 150Hz에서 시작해 100Hz로 살짝 떨어지며 실망스러운(?) 느낌 부여
-        osc.frequency.setValueAtTime(150, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.2);
-
-        // 3. 볼륨(Gain): 시작은 0.2로, 0.2초 동안 빠르게 줄어들게 하여 뚝 끊기는 소리 방지
-        gain.gain.setValueAtTime(0.2, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
-
-        // 4. 재생 시간: 0.2초 동안 재생
-        osc.start();
-        osc.stop(ctx.currentTime + 0.2);
-    }
+    playPop()   { this._play({ type: 'sine',     freqStart: 600, freqEnd: 1200, gainStart: 0.3, duration: 0.1 }); }
+    playError() { this._play({ type: 'sawtooth', freqStart: 150, freqEnd:  100, gainStart: 0.2, duration: 0.2 }); }
 }
 
 
@@ -88,11 +62,11 @@ class LobbyUI {
         this.nicknameStatus = document.getElementById('nickname-status');
 
         // 게임
-        this.uiTime      = document.getElementById('ui-time');
-        this.uiScore     = document.getElementById('ui-score');
-        this.leaderboard = document.getElementById('leaderboard');
-        this.gameBoard   = document.getElementById('game-board');
-        this.toggleEmoji = document.getElementById('toggle-emoji');
+        this.uiTime          = document.getElementById('ui-time');
+        this.uiScore         = document.getElementById('ui-score');
+        this.leaderboard     = document.getElementById('leaderboard');
+        this.gameBoard       = document.getElementById('game-board');
+        this.toggleEmoji     = document.getElementById('toggle-emoji');
 
         // 결과
         this.resultLeaderboard = document.getElementById('result-leaderboard');
@@ -118,7 +92,6 @@ class LobbyUI {
             this._refreshBoard(this.gameBoard);
             this._refreshBoard(this.replayBoard);
         };
-
         this.toggleEmoji     ?.addEventListener('change', handleToggle);
         this.toggleEmojiReplay?.addEventListener('change', handleToggle);
     }
@@ -142,19 +115,11 @@ class LobbyUI {
     getInputValue() { return this.inputRoomCode.value.trim().toUpperCase(); }
     clearInput()    { this.inputRoomCode.value = ''; }
 
-    // 🚀 [구조 수정] 방장 여부(isHost)와 클릭 콜백을 받아 초기화 버튼을 렌더링합니다.
+    // [흐름] 접속자 목록 렌더링
     renderPlayers(players, myId, isHost, onResetClickCallback) {
         this.playerList.innerHTML = '';
         players.forEach(p => {
             const li   = document.createElement('li');
-            li.style.padding = "10px";
-            li.style.marginBottom = "5px";
-            li.style.backgroundColor = "var(--bg-canvas)";
-            li.style.borderRadius = "4px";
-            li.style.display = "flex";               // 🚀 좌우 배치를 위해 flex 적용
-            li.style.justifyContent = "space-between";
-            li.style.alignItems = "center";
-
             const name = p.nickname || p.id;
             let text   = name;
             if (p.id === myId) text += ' (나)';
@@ -165,14 +130,11 @@ class LobbyUI {
             textSpan.innerText = text;
             li.appendChild(textSpan);
 
-            // 🚀 [구조 추가] 내가 방장이고, 상대방이 내가 아닐 때만 강제 초기화 버튼 노출
+            // 방장에게만, 본인 제외 강제 닉네임 초기화 버튼 노출
             if (isHost && p.id !== myId) {
                 const resetBtn = document.createElement('button');
                 resetBtn.innerText = '🔄 이름 초기화';
-                resetBtn.style.padding = '4px 8px';
-                resetBtn.style.fontSize = '12px';
-                resetBtn.style.backgroundColor = 'var(--danger)'; // 빨간 버튼
-
+                resetBtn.className = 'btn-reset-nickname';
                 resetBtn.addEventListener('click', () => {
                     if (confirm(`[ ${name} ] 님의 닉네임을 강제로 초기화하시겠습니까?`)) {
                         onResetClickCallback(p.id);
@@ -237,7 +199,7 @@ class LobbyUI {
         if (!cell) return;
 
         if (!color) {
-            const snapshot = cell.dataset.color; // 애니메이션 도중 외부 변경에 대한 안전 캡처
+            const snapshot = cell.dataset.color;
             cell.classList.add('tile-pop');
             setTimeout(() => {
                 cell.classList.remove('tile-pop');
@@ -329,11 +291,10 @@ class LobbyUI {
         cell.dataset.color = color || '';
         if (color) {
             cell.style.backgroundColor = color;
-            //cell.style.boxShadow       = 'inset 0 0 8px rgba(0,0,0,0.4)'; //🚀 JS가 강제로 넣던 그림자 제거 (CSS에게 위임)
             cell.style.cursor          = 'default';
             cell.innerText = this.isEmojiMode ? GameConfig.emojis[color] : '';
         } else {
-            cell.style.backgroundColor = 'transparent';// 🚀 빈 공간은 뒤쪽 보드가 보이도록
+            cell.style.backgroundColor = 'transparent';
             cell.style.boxShadow       = '';
             cell.style.cursor          = 'pointer';
             cell.innerText             = '';
@@ -397,57 +358,52 @@ class AppController {
     setupNetworkCallbacks() {
         this.network.onSyncState = (playersData) => {
             this.roomManager.syncPlayers(playersData);
-            if (this.isGameRunning) {
-                this.ui.renderLeaderboard(this.roomManager.players);
-            } else {
-                this.ui.renderPlayers(
-                    this.roomManager.players, 
-                    this.roomManager.myId, 
-                    this.roomManager.isHost, 
-                    (targetId) => this.handleForceResetNickname(targetId)
-                );
-            }
+            this._refreshPlayerView();
         };
 
         this.network.onGameStart = (seed) => this.startGameProcess(seed);
 
-        // 🚀 [핵심 흐름] 누군가 나에게 닉네임 초기화 명령을 내렸을 때 스스로 실행하는 로직
         this.network.onForceNicknameReset = (targetId) => {
-            if (targetId === this.roomManager.myId) {
-                // 1. 내 닉네임을 고유 ID로 다시 덮어씀
-                this.roomManager.setNickname(this.roomManager.myId);
-                this.ui.initNicknameInput(this.roomManager.myId);
-                
-                // 2. 초기화된 내 상태를 서버에 전파하여 모두의 화면을 갱신
-                const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
-                if (me) {
-                    this.network.updateMyState({ 
-                        ...me, 
-                        nickname: this.roomManager.myId, 
-                        updatedAt: Date.now() 
-                    });
-                }
+            if (targetId !== this.roomManager.myId) return;
+            this.roomManager.setNickname(this.roomManager.myId);
+            this.ui.initNicknameInput(this.roomManager.myId);
+            const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
+            if (me) {
+                this.network.updateMyState({ ...me, nickname: this.roomManager.myId, updatedAt: Date.now() });
             }
         };
 
-        // 🚀 [부활] 방송을 들으면 즉시 내 화면에서 삭제
         this.network.onPlayerLeft = (leftId) => {
             this.roomManager.markPlayerAsLeft(leftId);
-            
-            if (this.isGameRunning) {
-                this.ui.renderLeaderboard(this.roomManager.players);
-            } else {
-                this.ui.renderPlayers(
-                    this.roomManager.players, 
-                    this.roomManager.myId, 
-                    this.roomManager.isHost, 
-                    (targetId) => this.handleForceResetNickname(targetId)
-                );
-            }
+            this._refreshPlayerView();
         };
     }
 
-    // 🚀 [흐름 추가] 방장이 초기화 버튼을 눌렀을 때 실행됨
+    // [내부] 게임 중/대기 중 상태에 따라 적절한 뷰 갱신
+    _refreshPlayerView() {
+        if (this.isGameRunning) {
+            this.ui.renderLeaderboard(this.roomManager.players);
+        } else {
+            this.ui.renderPlayers(
+                this.roomManager.players,
+                this.roomManager.myId,
+                this.roomManager.isHost,
+                (targetId) => this.handleForceResetNickname(targetId)
+            );
+        }
+    }
+
+    // [내부] renderPlayers 호출 시 콜백을 항상 동일하게 넘기는 헬퍼
+    _renderPlayersWithCallback() {
+        this.ui.renderPlayers(
+            this.roomManager.players,
+            this.roomManager.myId,
+            this.roomManager.isHost,
+            (targetId) => this.handleForceResetNickname(targetId)
+        );
+    }
+
+    // [흐름] 방장이 닉네임 초기화 명령 전파
     handleForceResetNickname(targetId) {
         this.network.broadcastForceNicknameReset(targetId);
     }
@@ -455,42 +411,33 @@ class AppController {
     // [흐름] 방 생성
     async handleCreateRoom() {
         const newCode = this.roomManager.generateRoomCode();
-
         try {
-            // 통신이 완전히 연결될 때까지 기다림
             await this.network.connectToRoom(newCode, {
                 id:       this.roomManager.myId,
                 nickname: this.roomManager.myNickname,
                 isHost:   true,
             });
 
-            // 성공 시에만 로컬 데이터 세팅 및 화면 전환
             this.roomManager.setRoomState(newCode, true);
             this.roomManager.addPlayer(this.roomManager.myId, true);
-            
+
             this.ui.setupButtons(true);
-            this.ui.renderPlayers(
-                this.roomManager.players,
-                this.roomManager.myId,
-                this.roomManager.isHost,
-                (targetId) => this.handleForceResetNickname(targetId)
-            );
+            this._renderPlayersWithCallback();
             this.ui.updateRoomView(newCode, true);
             this.ui.initNicknameInput(this.roomManager.myNickname);
             this.ui.switchScreen('screen-room');
-            
-        } catch (error) {
+
+        } catch {
             alert('방 생성에 실패했습니다. 다시 시도해주세요.');
         }
     }
 
-    // [흐름] 방 접속
+    // [흐름] 방 접속 — 존재하지 않는 코드면 에러 알림 후 종료
     async handleJoinRoom() {
         const code = this.ui.getInputValue();
         if (code.length !== 4) { alert('4자리 방 코드를 정확히 입력해주세요.'); return; }
 
         try {
-            // 1. 먼저 게스트 자격으로 해당 코드의 방이 존재하는지(방장이 있는지) 0.5초간 검증합니다.
             await this.network.connectToRoom(code, {
                 id:       this.roomManager.myId,
                 nickname: this.roomManager.myNickname,
@@ -498,47 +445,19 @@ class AppController {
                 isReady:  false,
             });
 
-            // 🚀 검증 성공! 누군가 만든 방이 있으므로 게스트로 정식 입장합니다.
             this.roomManager.setRoomState(code, false);
             this.ui.setupButtons(false);
             this.ui.updateRoomView(code, false);
             this.ui.initNicknameInput(this.roomManager.myNickname);
             this.ui.switchScreen('screen-room');
-            
-        } catch (error) {
-            // 🚀 검증 실패 처리
-            if (error.message === 'ROOM_NOT_FOUND') {
-                // [핵심 변경점] 방이 존재하지 않는다면, 튕겨내는 대신 내가 해당 코드로 새 방을 엽니다!
-                try {
-                    await this.network.connectToRoom(code, {
-                        id:       this.roomManager.myId,
-                        nickname: this.roomManager.myNickname,
-                        isHost:   true, // 방장 권한으로 재접속!
-                    });
 
-                    // 성공 시 로컬 데이터를 '방장'으로 세팅하고 대기실로 이동
-                    this.roomManager.setRoomState(code, true);
-                    this.roomManager.addPlayer(this.roomManager.myId, true);
-                    
-                    this.ui.setupButtons(true);
-                    this.ui.renderPlayers(
-                        this.roomManager.players,
-                        this.roomManager.myId,
-                        this.roomManager.isHost,
-                        (targetId) => this.handleForceResetNickname(targetId)
-                    );
-                    this.ui.updateRoomView(code, true);
-                    this.ui.initNicknameInput(this.roomManager.myNickname);
-                    this.ui.switchScreen('screen-room');
-                    
-                } catch (createError) {
-                    alert('새 방 생성에 실패했습니다.');
-                    this.roomManager.clearRoomState();
-                }
+        } catch (error) {
+            if (error.message === 'ROOM_NOT_FOUND') {
+                alert('존재하지 않는 방 코드입니다. 코드를 확인해주세요.');
             } else {
-                alert('방 접속에 실패했습니다.');
-                this.roomManager.clearRoomState(); // 접속 실패 시 찌꺼기 싹 비우기
+                alert('방 접속에 실패했습니다. 다시 시도해주세요.');
             }
+            this.roomManager.clearRoomState();
         }
     }
 
@@ -562,12 +481,7 @@ class AppController {
 
         const desiredReadyState = !me.isReady;
         me.isReady = desiredReadyState;
-        this.ui.renderPlayers(
-            this.roomManager.players,
-            this.roomManager.myId,
-            this.roomManager.isHost,
-            (targetId) => this.handleForceResetNickname(targetId)
-        );
+        this._renderPlayersWithCallback();
 
         this.network.updateMyState({
             id:        this.roomManager.myId,
@@ -627,24 +541,22 @@ class AppController {
         const targetTiles = this.board.getMatchedTilesToDestroy(index);
 
         if (targetTiles.length === 0) {
-            if (this.scoreTimer.score > 0) {
-                this.scoreTimer.addScore(-1);
-            }
+            if (this.scoreTimer.score > 0) this.scoreTimer.addScore(-1);
             this.soundFX.playError();
-        }
-        else {
+        } else {
             targetTiles.forEach(idx => {
                 this.board.grid[idx] = null;
                 this.ui.updateCell(idx, null);
             });
-
             this.scoreTimer.addScore(targetTiles.length);
-            this.ui.updateStats(this.scoreTimer.time, this.scoreTimer.score);
             this.soundFX.playPop();
         }
 
+        // 성공/실패 모두 점수 갱신 및 기록
+        this.ui.updateStats(this.scoreTimer.time, this.scoreTimer.score);
+
         this.myActionHistory.push({
-            timeLeft: this.scoreTimer.time,
+            timeLeft:     this.scoreTimer.time,
             indexClicked: index,
             currentScore: this.scoreTimer.score,
         });
@@ -744,35 +656,21 @@ class AppController {
         const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
         if (me) {
             this.network.updateMyState({
-                ...me,
-                score:     0,
-                history:   [],
-                isReady:   false,
-                updatedAt: Date.now(),
+                ...me, score: 0, history: [], isReady: false, updatedAt: Date.now(),
             });
         }
 
         this.ui.switchScreen('screen-room');
         this.ui.updateRoomView(this.roomManager.currentRoomCode, this.roomManager.isHost);
         this.ui.setupButtons(this.roomManager.isHost);
-        this.ui.renderPlayers(
-            this.roomManager.players,
-            this.roomManager.myId,
-            this.roomManager.isHost,
-            (targetId) => this.handleForceResetNickname(targetId)
-        );
+        this._renderPlayersWithCallback();
     }
 
-    // 🚀 [핵심 흐름 수정] async를 다시 붙이고, 화면 전환을 최우선으로 배치!
+    // [흐름] 방 퇴장 — 화면 전환 우선, 통신은 백그라운드 처리
     async handleLeaveRoom() {
-        // 1. 통신을 끊기 전에 화면부터 0초 만에 즉시 로비로 넘깁니다. (쾌적함)
         this.ui.clearInput();
         this.ui.switchScreen('screen-lobby');
-
-        // 2. 백그라운드에서 조용히 "나 나감" 확성기를 쏘고 소켓을 끊습니다.
         await this.network.disconnect();
-        
-        // 3. 모든 통신이 끝난 후 내 로컬 데이터를 초기화하고 새 ID를 발급합니다.
         this.roomManager.clearRoomState();
     }
 }

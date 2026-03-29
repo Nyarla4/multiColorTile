@@ -129,6 +129,16 @@ ul.list-box li {
     margin-bottom: 5px;
     background-color: var(--bg-canvas);
     border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.btn-reset-nickname {
+    padding: 4px 8px;
+    font-size: 12px;
+    background-color: var(--danger);
+    flex-shrink: 0;
 }
 
 /* ───────────── 게임 화면 레이아웃 ───────────── */
