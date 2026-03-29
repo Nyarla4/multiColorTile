@@ -540,7 +540,7 @@ class AppController {
         
         // 2. 🚀 [추가] 방장 본인의 로컬 데이터에서도 해당 플레이어를 즉시 차단(블랙리스트)하고 화면을 새로고침합니다.
         this.roomManager.markPlayerAsLeft(targetId);
-        this._refreshPlayerView(
+        this._refreshPlayerView();
     }
 
     // [내부] renderPlayers 호출 시 콜백을 항상 동일하게 넘기는 헬퍼
