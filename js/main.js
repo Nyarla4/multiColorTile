@@ -55,6 +55,7 @@ class LobbyUI {
         // 대기실
         this.roomTitle      = document.getElementById('room-title');
         this.btnCopyLink    = document.getElementById('btn-copy-link');
+        this.toggleForceStart = document.getElementById('toggle-force-start'); // 🚀 [추가] 토글 스위치 연결
         this.roomStatus     = document.getElementById('room-status');
         this.playerList     = document.getElementById('player-list');
         this.btnReady       = document.getElementById('btn-ready');
@@ -226,6 +227,14 @@ class LobbyUI {
     setupButtons(isHost) {
         this.btnReady.style.display = isHost ? 'none'  : 'block';
         this.btnStart.style.display = isHost ? 'block' : 'none';
+        this.toggleForceStart.disabled = !isHost;
+    }
+
+    // 🚀 [추가] 방장의 상태를 읽어와서 UI 토글 위치 동기화 (구조적 역할)
+    updateForceStartUI(isOn) {
+        if (this.toggleForceStart.checked !== isOn) {
+            this.toggleForceStart.checked = isOn;
+        }
     }
 
     // [흐름] 준비 버튼 상태 UI 갱신
@@ -463,6 +472,19 @@ class AppController {
             if (this.board) this.ui.initBoard(this.board.grid);
             if (this.selectedPlayerData) this.goToReplayStep(this.replayStep);
         });
+
+        // 🚀 [추가] 토글 스위치를 누르면 방장의 상태(Presence) 업데이트
+        this.ui.toggleForceStart?.addEventListener('change', (e) => this.handleForceStartToggle(e.target.checked));
+    }
+    
+    // 🚀 [추가] 방장이 토글을 변경했을 때의 흐름
+    handleForceStartToggle(isOn) {
+        if (!this.roomManager.isHost) return; // 방장만 조작 가능
+        const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
+        if (me) {
+            me.isForceStartOn = isOn; // 내 정보에 토글 상태 저장
+            this.network.updateMyState({ ...me, updatedAt: Date.now() }); // 즉시 전파
+        }
     }
 
     // [흐름] 네트워크 콜백 설정
@@ -503,13 +525,19 @@ class AppController {
         if (this.isGameRunning) {
             this.ui.renderLeaderboard(this.roomManager.players, this.roomManager.myId);
         } else {
-            this.ui.renderPlayers(
+            this.ui.renderPlayers(/* 기존 파라미터 그대로 유지 */
                 this.roomManager.players,
                 this.roomManager.myId,
                 this.roomManager.isHost,
                 (targetId) => this.handleForceResetNickname(targetId),
                 (targetId) => this.handleKickPlayer(targetId)
             );
+
+            // 🚀 방장의 현재 설정을 읽어서 모든 사람의 화면(UI)에 반영
+            const host = this.roomManager.players.find(p => p.isHost);
+            if (host) {
+                this.ui.updateForceStartUI(!!host.isForceStartOn);
+            }
         }
     }
 
@@ -648,11 +676,16 @@ class AppController {
 
     // [흐름] 게임 시작 (방장 전용)
     handleGameStart() {
+        // 방장의 강제 시작 상태 확인
+        const host = this.roomManager.players.find(p => p.isHost);
+        const isForceStart = host ? host.isForceStartOn : false;
+
         const guests   = this.roomManager.players.filter(p => !p.isHost);
         const allReady = guests.length > 0 && guests.every(p => p.isReady);
 
-        if (!allReady && guests.length > 0) {
-            alert('모든 참가자가 준비를 완료해야 시작할 수 있습니다.');
+        // 강제 시작도 꺼져있고, 모두가 준비한 것도 아니면 차단
+        if (!isForceStart && !allReady && guests.length > 0) {
+            alert('모든 참가자가 준비를 완료해야 시작할 수 있습니다.\n또는 [강제 시작] 설정을 켜주세요.');
             return;
         }
 
