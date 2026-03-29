@@ -213,7 +213,7 @@ class LobbyUI {
     }
 
     // [흐름] 실시간 순위표 렌더링
-    renderLeaderboard(players) {
+    renderLeaderboard(players, myId) {
         const sorted = [...players].sort((a, b) => (b.score || 0) - (a.score || 0));
         this.leaderboard.innerHTML = '<strong>🏆 실시간 순위</strong>';
         sorted.forEach((p, i) => {
@@ -280,8 +280,8 @@ class LobbyUI {
         });
     }
 
-    // [흐름] 결과 화면 순위표 렌더링
-    renderResultBoard(players, onSelectCallback) {
+    // 🚀 [수정] 파라미터 맨 끝에 myId 추가
+    renderResultBoard(players, onSelectCallback, myId) {
         const sorted = [...players].sort((a, b) => (b.score || 0) - (a.score || 0));
         this.resultLeaderboard.innerHTML = '';
         this.replayTitle.innerText       = '🔍 복기할 플레이어를 선택하세요';
@@ -290,6 +290,7 @@ class LobbyUI {
         sorted.forEach((p, i) => {
             const card = document.createElement('div');
             card.className = i === 0 ? 'result-card first-place' : 'result-card';
+            
             // 이름 뒤에 (나) 추가
             let displayName = p.nickname || p.id;
             if (p.id === myId) displayName += ' (나)';
