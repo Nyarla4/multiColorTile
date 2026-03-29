@@ -56,6 +56,7 @@ class LobbyUI {
         this.leaderboard = document.getElementById('leaderboard');
         this.gameBoard   = document.getElementById('game-board');
         this.toggleEmoji = document.getElementById('toggle-emoji');
+        this.toggleEmojiReplay = document.getElementById('toggle-emoji-replay');
 
         // 결과
         this.resultLeaderboard = document.getElementById('result-leaderboard');
@@ -68,10 +69,24 @@ class LobbyUI {
         this.btnBackToRoom     = document.getElementById('btn-back-to-room');
 
         this.isEmojiMode = false;
-        this.toggleEmoji.addEventListener('change', (e) => {
+        // 🚀 [흐름 제어] 어느 토글을 누르든 상태를 동기화하고 화면을 갱신하는 공통 함수
+        const handleToggleChange = (e) => {
             this.isEmojiMode = e.target.checked;
-            this._refreshAllEmojis();
-        });
+            
+            // 체크박스 시각적 상태 동기화 (게임 화면 스위치 ↔ 리플레이 스위치)
+            if (this.toggleEmoji) this.toggleEmoji.checked = this.isEmojiMode;
+            if (this.toggleEmojiReplay) this.toggleEmojiReplay.checked = this.isEmojiMode;
+            
+            this.refreshAllEmojis(); // 보드 갱신
+        };
+
+        // 두 스위치에 동일한 이벤트 연결
+        if (this.toggleEmoji) {
+            this.toggleEmoji.addEventListener('change', handleToggleChange);
+        }
+        if (this.toggleEmojiReplay) {
+            this.toggleEmojiReplay.addEventListener('change', handleToggleChange);
+        }
     }
 
     // [흐름] 화면 전환
@@ -252,7 +267,7 @@ class LobbyUI {
         }
     }
 
-    // [내부] 이모지 모드 토글 시 전체 셀 텍스트 갱신
+    // [내부] 모양 표시 토글 시 전체 셀 텍스트 갱신
     _refreshAllEmojis() {
         const update = (board) => {
             Array.from(board.children).forEach(cell => {
