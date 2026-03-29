@@ -535,7 +535,12 @@ class AppController {
 
     // 🚀 [추가] 방장이 추방 버튼을 눌렀을 때 실행되는 메서드
     handleKickPlayer(targetId) {
+        // 1. 방을 제외한 다른 모든 사람(당사자 포함)에게 추방 방송을 쏩니다.
         this.network.broadcastKickPlayer(targetId);
+        
+        // 2. 🚀 [추가] 방장 본인의 로컬 데이터에서도 해당 플레이어를 즉시 차단(블랙리스트)하고 화면을 새로고침합니다.
+        this.roomManager.markPlayerAsLeft(targetId);
+        this._refreshPlayerView(
     }
 
     // [내부] renderPlayers 호출 시 콜백을 항상 동일하게 넘기는 헬퍼
