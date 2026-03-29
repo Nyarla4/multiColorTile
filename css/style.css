@@ -369,3 +369,53 @@ ul.list-box li {
 .modal-buttons button {
     flex: 1;
 }
+
+/* ───────────── 버전 뱃지 ───────────── */
+.version-badge {
+    position: fixed;
+    bottom: 20px;
+    right: 20px; /* 좌측 하단을 원하시면 left: 20px; 로 변경하세요 */
+    color: var(--text-muted);
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 8px 14px;
+    background-color: rgba(22, 33, 62, 0.7); /* 반투명 배경 */
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    z-index: 50;
+}
+
+.version-badge:hover {
+    color: var(--text-main);
+    background-color: var(--primary);
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* ───────────── 업데이트 로그 ───────────── */
+.changelog-content {
+    max-height: 300px; /* 내용이 길어지면 스크롤 생성 */
+    overflow-y: auto;
+    margin-bottom: 10px;
+    padding-right: 15px;
+    font-size: 14px;
+}
+
+.changelog-content h4 {
+    color: var(--highlight);
+    margin: 15px 0 5px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 5px;
+}
+
+.changelog-content ul {
+    margin: 0;
+    padding-left: 20px;
+    color: var(--text-main);
+    line-height: 1.6;
+}
+
+/* 스크롤바 커스텀 (업데이트 로그 전용) */
+.changelog-content::-webkit-scrollbar { width: 6px; }
+.changelog-content::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 3px; }

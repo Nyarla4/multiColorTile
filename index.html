@@ -1,33 +1,61 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <title>Color Tile - Multiplayer</title>
     <link rel="stylesheet" href="./css/style.css">
     <link rel="icon" type="image/png" href="./icon.png">
 </head>
-<body>
 
+<body>
     <!-- 로비 화면 -->
     <div id="screen-lobby" class="screen active">
         <div class="panel">
             <h1>컬러 타일 멀티</h1>
             <p class="text-muted">
-                솔플 개발이라 딜레이가 좀 있어요
-                <br>
-                ;ㅁ;
-                <br>
-                1.0.0 릴리즈!!
-                <br>
-                1.1.0 잘못 눌렀을때 감점 추가
-                <br>
-                1.1.1 0에서도 감점되는 현상 수정...
+                솔플 개발이라 딜레이가 좀 있어요<br>;ㅁ;
             </p>
             <br>
             <button id="btn-create-room" class="btn-secondary" style="width: 100%; padding: 15px;">방 생성</button>
             <div class="form-group" style="margin-top: 30px;">
                 <input type="text" id="input-room-code" placeholder="방 코드" maxlength="4" autocomplete="off">
                 <button id="btn-join-room">방 접속</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="btn-version" class="version-badge">v1.1.1</div>
+
+    <div id="modal-room-not-found" class="modal-overlay" style="display: none;">
+    </div>
+
+    <div id="modal-changelog" class="modal-overlay" style="display: none;">
+        <div class="modal-box" style="max-width: 400px; text-align: left;">
+            <h2 style="margin-bottom: 20px; text-align: center;">업데이트 로그</h2>
+
+            <div class="changelog-content">
+                <h4>v1.0.0</h4>
+                <ul>
+                    <li>컬러 타일 멀티플레이어 릴리즈!</li>
+                </ul>
+                <h4>v1.1.0</h4>
+                <ul>
+                    <li>잘못된 타일을 눌렀을 때 감점 로직 추가</li>
+                    <li>에러 부저음 추가</li>
+                </ul>
+                <h4>v1.1.1</h4>
+                <ul>
+                    <li>0점에서도 감점되는 현상 수정</li>
+                </ul>
+                <h4>v1.2.1</h4>
+                <ul>
+                    <li>버전 로그 정리!!</li>
+                </ul>                
+            </div>
+
+            <div class="modal-buttons" style="margin-top: 20px;">
+                <button id="modal-btn-close-changelog" class="btn-primary" style="width: 100%;">닫기</button>
             </div>
         </div>
     </div>
@@ -95,13 +123,14 @@
             <div class="result-col" style="display: flex; flex-direction: column; align-items: center;">
                 <h3 id="replay-title" style="color: var(--primary);">🔍 플레이어 선택</h3>
 
-                <div id="replay-content" style="display: none; flex-direction: column; align-items: center; width: 100%; margin-top: 15px;">
+                <div id="replay-content"
+                    style="display: none; flex-direction: column; align-items: center; width: 100%; margin-top: 15px;">
                     <div class="game-info-bar" style="font-size: 1rem; margin-bottom: 0;">
                         <span id="replay-time">Time: -</span>
                         <span id="replay-score">Score: -</span>
                     </div>
 
-                    
+
                     <div class="toggle-container" style="justify-content: center; margin-bottom: 15px;">
                         <label>
                             <input type="checkbox" id="toggle-emoji-replay">
@@ -111,7 +140,8 @@
 
 
                     <div id="replay-board"></div>
-                    <input type="range" id="replay-slider" min="0" max="0" value="0" style="width: 100%; margin: 15px 0; cursor: pointer; accent-color: var(--highlight);">
+                    <input type="range" id="replay-slider" min="0" max="0" value="0"
+                        style="width: 100%; margin: 15px 0; cursor: pointer; accent-color: var(--highlight);">
                     <button id="btn-play-replay" class="btn-secondary" style="margin-top: 10px;">▶ 재생 시작</button>
                 </div>
             </div>
@@ -134,4 +164,5 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module" src="./js/main.js"></script>
 </body>
+
 </html>

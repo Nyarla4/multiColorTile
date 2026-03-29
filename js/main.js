@@ -84,6 +84,11 @@ class LobbyUI {
 
         // 모달
         this.modalRoomNotFound = document.getElementById('modal-room-not-found');
+
+        // 🚀 [추가] 버전 표시 및 업데이트 로그 모달 요소
+        this.btnVersion        = document.getElementById('btn-version');
+        this.modalChangelog    = document.getElementById('modal-changelog');
+        this.btnChangelogClose = document.getElementById('modal-btn-close-changelog');
     }
 
     // [흐름] 이모지 토글 이벤트 바인딩 — AppController.bindEvents()에서 호출
@@ -339,6 +344,9 @@ class LobbyUI {
             cell.innerText = (color && this.isEmojiMode) ? GameConfig.emojis[color] : '';
         });
     }
+
+    showChangelog() { this.modalChangelog.style.display = 'flex'; }
+    hideChangelog() { this.modalChangelog.style.display = 'none'; }
 }
 
 
@@ -382,6 +390,10 @@ class AppController {
         this.ui.btnPlayReplay .addEventListener('click', () => {
             this.replayInterval ? this.pauseReplay() : this.startReplaySimulation();
         });
+
+        // 🚀 [추가] 버전 뱃지 클릭 시 모달 열기, 닫기 버튼 클릭 시 모달 닫기
+        this.ui.btnVersion?.addEventListener('click', () => this.ui.showChangelog());
+        this.ui.btnChangelogClose?.addEventListener('click', () => this.ui.hideChangelog());
     }
 
     // [흐름] 네트워크 콜백 설정
