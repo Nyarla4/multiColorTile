@@ -490,7 +490,7 @@ class AppController {
         if (code.length !== 4) { alert('4자리 방 코드를 정확히 입력해주세요.'); return; }
 
         try {
-            // 방장 존재 여부를 0.5초간 검증
+            // 1. 먼저 게스트 자격으로 해당 코드의 방이 존재하는지(방장이 있는지) 0.5초간 검증합니다.
             await this.network.connectToRoom(code, {
                 id:       this.roomManager.myId,
                 nickname: this.roomManager.myNickname,
@@ -498,7 +498,7 @@ class AppController {
                 isReady:  false,
             });
 
-            // 🚀 검증 성공! 정식 입장 처리
+            // 🚀 검증 성공! 누군가 만든 방이 있으므로 게스트로 정식 입장합니다.
             this.roomManager.setRoomState(code, false);
             this.ui.setupButtons(false);
             this.ui.updateRoomView(code, false);
@@ -506,13 +506,39 @@ class AppController {
             this.ui.switchScreen('screen-room');
             
         } catch (error) {
-            // 🚀 검증 실패!
+            // 🚀 검증 실패 처리
             if (error.message === 'ROOM_NOT_FOUND') {
-                alert('존재하지 않는 방입니다. 코드를 다시 확인해주세요.');
+                // [핵심 변경점] 방이 존재하지 않는다면, 튕겨내는 대신 내가 해당 코드로 새 방을 엽니다!
+                try {
+                    await this.network.connectToRoom(code, {
+                        id:       this.roomManager.myId,
+                        nickname: this.roomManager.myNickname,
+                        isHost:   true, // 방장 권한으로 재접속!
+                    });
+
+                    // 성공 시 로컬 데이터를 '방장'으로 세팅하고 대기실로 이동
+                    this.roomManager.setRoomState(code, true);
+                    this.roomManager.addPlayer(this.roomManager.myId, true);
+                    
+                    this.ui.setupButtons(true);
+                    this.ui.renderPlayers(
+                        this.roomManager.players,
+                        this.roomManager.myId,
+                        this.roomManager.isHost,
+                        (targetId) => this.handleForceResetNickname(targetId)
+                    );
+                    this.ui.updateRoomView(code, true);
+                    this.ui.initNicknameInput(this.roomManager.myNickname);
+                    this.ui.switchScreen('screen-room');
+                    
+                } catch (createError) {
+                    alert('새 방 생성에 실패했습니다.');
+                    this.roomManager.clearRoomState();
+                }
             } else {
                 alert('방 접속에 실패했습니다.');
+                this.roomManager.clearRoomState(); // 접속 실패 시 찌꺼기 싹 비우기
             }
-            this.roomManager.clearRoomState(); // 접속 실패 시 찌꺼기 싹 비우기
         }
     }
 
