@@ -247,7 +247,7 @@ class LobbyUI {
             const cell = document.createElement('div');
             cell.className             = 'mini-tile';
             cell.dataset.color         = color || '';
-            cell.style.backgroundColor = color || 'var(--bg-canvas)';
+            cell.style.backgroundColor = color || 'transparent';
             cell.innerText = (color && this.isEmojiMode) ? GameConfig.emojis[color] : '';
             this.replayBoard.appendChild(cell);
         });
@@ -258,7 +258,7 @@ class LobbyUI {
         Array.from(this.replayBoard.children).forEach((cell, index) => {
             const color = gridData[index];
             cell.dataset.color         = color || '';
-            cell.style.backgroundColor = color || 'var(--bg-canvas)';
+            cell.style.backgroundColor = color || 'transparent';
             cell.style.transform       = 'scale(1)';
             cell.innerText = (color && this.isEmojiMode) ? GameConfig.emojis[color] : '';
         });
@@ -275,11 +275,11 @@ class LobbyUI {
         cell.dataset.color = color || '';
         if (color) {
             cell.style.backgroundColor = color;
-            cell.style.boxShadow       = 'inset 0 0 8px rgba(0,0,0,0.4)';
+            //cell.style.boxShadow       = 'inset 0 0 8px rgba(0,0,0,0.4)'; //🚀 JS가 강제로 넣던 그림자 제거 (CSS에게 위임)
             cell.style.cursor          = 'default';
             cell.innerText = this.isEmojiMode ? GameConfig.emojis[color] : '';
         } else {
-            cell.style.backgroundColor = 'var(--bg-canvas)';
+            cell.style.backgroundColor = 'transparent';// 🚀 빈 공간은 뒤쪽 보드가 보이도록
             cell.style.boxShadow       = '';
             cell.style.cursor          = 'pointer';
             cell.innerText             = '';
