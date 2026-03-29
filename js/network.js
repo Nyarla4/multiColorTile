@@ -45,6 +45,7 @@ export class RoomManager {
         this.currentRoomCode = null;
         this.isHost = false;
         this.players = [];
+        this.myId = 'P_' + crypto.randomUUID().slice(0, 8);
     }
 
     syncPlayers(playersData) {
@@ -131,13 +132,15 @@ export class NetworkClient {
     async disconnect() {
         if (!this.channel) return;
         try {
-            // 🚀 1. 공식 API: 서버에게 "내 상태(Presence)를 명단에서 즉시 지워줘!" 라고 요청
+            // 🚀 1. 공식 API: 서버에게 명단 삭제 요청
             await this.channel.untrack();
             
-            // 🚀 2. 명단에서 빠진 것을 확인한 후, 안전하게 연결 해제 및 채널 정리
+            // 🚀 2. [추가] untrack 메시지가 서버에 도달하고 처리될 시간을 0.15초 벌어줌
+            await new Promise(resolve => setTimeout(resolve, 150));
+            
+            // 🚀 3. 안전하게 소켓 닫기
             await this.channel.unsubscribe();
-            await supabase.removeChannel(this.channel); 
-            // 주의: removeAllChannels()는 다른 기능 충돌 위험이 있어 제외했습니다.
+            await supabase.removeChannel(this.channel);
         } catch (error) {
             console.error('[Network] Disconnect Error:', error);
         } finally {
