@@ -137,12 +137,24 @@ export function generateSeed(config) {
 // [구조] 타이머 및 점수 관리
 export class ScoreTimer {
     constructor(config) {
+        this.timeLimit  = config.timeLimit; // 원래 제한 시간(120초) 보관
         this.time       = config.timeLimit;
         this.score      = 0;
         this.intervalId = null;
+        this.endTime    = 0; // 🚀 현실 시간 기준의 종료 시각을 저장할 변수
     }
 
-    start(callback) { this.intervalId = setInterval(callback, 1000); }
+    start(callback) {
+        // 🚀 타이머가 시작된 '현실 시간 + 120초'를 목표 종료 시각으로 절대 못 박음
+        this.endTime = Date.now() + (this.timeLimit * 1000);
+
+        // UI 갱신을 위해 1초(1000ms)마다 콜백 실행
+        // (실행 주기가 밀려도 남은 시간 계산은 Date.now()로 하므로 절대 안 밀림!)
+        this.intervalId = setInterval(() => {
+            this._updateTime();
+            callback();
+        }, 1000);
+    }
 
     stop() {
         clearInterval(this.intervalId);
@@ -150,6 +162,22 @@ export class ScoreTimer {
     }
 
     addScore(amount) { this.score += amount; }
-    tick()           { this.time--; return this.time; }
-    isTimeUp()       { return this.time <= 0; }
+
+    // 🚀 단순히 -1을 하는 게 아니라, (목표 시각 - 현재 시각)을 계산
+    _updateTime() {
+        const now = Date.now();
+        // 남은 밀리초를 초로 변환하고 올림 처리 (0 이하로 안 떨어지게 Math.max 적용)
+        const remaining = Math.ceil((this.endTime - now) / 1000);
+        this.time = Math.max(0, remaining);
+    }
+
+    // 🚀 main.js가 매 초마다 호출하는 메서드
+    tick() { 
+        this._updateTime(); // 틱이 불릴 때마다 현실 시간 기준으로 시간 갱신
+        return this.time; 
+    }
+
+    isTimeUp() { 
+        return this.time <= 0; 
+    }
 }
