@@ -72,89 +72,82 @@ export class NetworkClient {
     }
 
     connectToRoom(roomCode, myData) {
-        this.myLastData = myData;
+        return new Promise((resolve, reject) => {
+            this.myLastData = myData;
 
-        this.channel = supabase.channel('room_' + roomCode, {
-            config: { presence: { key: myData.id } },
-        });
+            this.channel = supabase.channel('room_' + roomCode, {
+                config: { presence: { key: myData.id } },
+            });
 
-        const syncCurrentState = () => {
-            const state = this.channel.presenceState();
-            const currentPlayers = [];
-
-            for (const key in state) {
-                const arr = state[key];
-                if (arr.length > 0) {
-                    const latest = arr[arr.length - 1];
-                    if (!latest.isLeaving) currentPlayers.push(latest);
+            const syncCurrentState = () => {
+                const state = this.channel.presenceState();
+                const currentPlayers = [];
+                for (const key in state) {
+                    const arr = state[key];
+                    if (arr.length > 0) {
+                        const latest = arr[arr.length - 1];
+                        if (!latest.isLeaving) currentPlayers.push(latest);
+                    }
                 }
-            }
+                if (this.onSyncState) this.onSyncState(currentPlayers);
+            };
 
-            if (this.onSyncState) this.onSyncState(currentPlayers);
-        };
+            this.channel.on('presence', { event: 'sync' }, syncCurrentState);
+            this.channel.on('presence', { event: 'leave' }, syncCurrentState);
+            this.channel.on('broadcast', { event: 'game_start' }, (payload) => {
+                if (this.onGameStart) this.onGameStart(payload.payload.seed);
+            });
+            this.channel.on('broadcast', { event: 'force_reset_nickname' }, (payload) => {
+                if (this.onForceNicknameReset) this.onForceNicknameReset(payload.payload.targetId);
+            });
+            this.channel.on('broadcast', { event: 'player_left' }, (payload) => {
+                if (this.onPlayerLeft) this.onPlayerLeft(payload.payload.id);
+            });
 
-        this.channel.on('presence', { event: 'sync' }, syncCurrentState);
-        this.channel.on('presence', { event: 'leave' }, syncCurrentState);
-        this.channel.on('broadcast', { event: 'game_start' }, (payload) => {
-            if (this.onGameStart) this.onGameStart(payload.payload.seed);
-        });
-        this.channel.on('broadcast', { event: 'force_reset_nickname' }, (payload) => {
-            if (this.onForceNicknameReset) this.onForceNicknameReset(payload.payload.targetId);
-        });
+            this.channel.subscribe(async (status) => {
+                if (status === 'SUBSCRIBED') {
+                    console.log(`[Network] ${roomCode} 채널 접속 완료`);
 
-        // 🚀 [부활] 확성기 수신 로직 추가
-        this.channel.on('broadcast', { event: 'player_left' }, (payload) => {
-            if (this.onPlayerLeft) this.onPlayerLeft(payload.payload.id);
-        });
-
-        this.channel.subscribe(async (status) => {
-            if (status === 'SUBSCRIBED') {
-                console.log(`[Network] ${roomCode} 채널 접속 완료`);
-
-                if (myData.isHost) {
-                    // 방장: 접속 즉시 자신의 상태를 등록
-                    await this.channel.track(this.myLastData);
-                    resolve(true);
-                } else {
-                    // 🚀 [개선] 0.5초 고정 대기 대신, 0.1초마다 확인하여 방장을 찾으면 딜레이 없이 즉시 입장!
-                    let checkAttempts = 0;
-                    const checkHostInterval = setInterval(async () => {
-                        try {
-                            checkAttempts++;
-                            const state = this.channel.presenceState();
-                            let hasHost = false;
-                            
-                            for (const key in state) {
-                                if (state[key].some(p => p.isHost && !p.isLeaving)) {
-                                    hasHost = true;
-                                    break;
+                    if (myData.isHost) {
+                        // 방장: 접속 즉시 상태 등록
+                        await this.channel.track(this.myLastData);
+                        resolve(true); // 🚀 정상 작동
+                    } else {
+                        // 게스트: 0.1초마다 방장 존재 확인 (최대 1.5초)
+                        let checkAttempts = 0;
+                        const checkHostInterval = setInterval(async () => {
+                            try {
+                                checkAttempts++;
+                                const state = this.channel.presenceState();
+                                let hasHost = false;
+                                
+                                for (const key in state) {
+                                    if (state[key].some(p => p.isHost && !p.isLeaving)) {
+                                        hasHost = true;
+                                        break;
+                                    }
                                 }
-                            }
 
-                            if (hasHost) {
-                                // 방장을 발견하면 즉시 대기를 멈추고 입장!
+                                if (hasHost) {
+                                    clearInterval(checkHostInterval);
+                                    await this.channel.track(this.myLastData);
+                                    resolve(true); // 🚀 정상 입장
+                                } else if (checkAttempts >= 15) { 
+                                    clearInterval(checkHostInterval);
+                                    await this.channel.unsubscribe();
+                                    await supabase.removeChannel(this.channel); 
+                                    this.channel = null;
+                                    this.myLastData = null;
+                                    reject(new Error('ROOM_NOT_FOUND')); // 🚀 에러 발생 없이 정상적으로 catch로 넘어감
+                                }
+                            } catch (err) {
                                 clearInterval(checkHostInterval);
-                                await this.channel.track(this.myLastData);
-                                resolve(true);
-                            } else if (checkAttempts >= 15) { 
-                                // 1.5초(100ms * 15)가 지나도 방장이 안 오면 진짜 없는 방으로 간주
-                                clearInterval(checkHostInterval);
-                                await this.channel.unsubscribe();
-                                
-                                // 🚀 오타 수정: window. 빼고 supabase 인스턴스 직접 호출
-                                await supabase.removeChannel(this.channel); 
-                                
-                                this.channel = null;
-                                this.myLastData = null;
-                                reject(new Error('ROOM_NOT_FOUND'));
+                                reject(err);
                             }
-                        } catch (err) {
-                            clearInterval(checkHostInterval);
-                            reject(err);
-                        }
-                    }, 100);
+                        }, 100);
+                    }
                 }
-            }
+            });
         });
     }
     
