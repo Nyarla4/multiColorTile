@@ -202,6 +202,17 @@ class LobbyUI {
         this.btnStart.style.display = isHost ? 'block' : 'none';
     }
 
+    // 🚀 [추가] 게스트 준비 버튼 상태 UI 업데이트 (구조와 디자인 전담)
+    updateReadyButtonUI(isReady) {
+        if (isReady) {
+            this.btnReady.innerText = '준비 취소';
+            this.btnReady.classList.replace('btn-secondary', 'btn-primary'); // 초록색 -> 보라색(대기느낌)
+        } else {
+            this.btnReady.innerText = '준비';
+            this.btnReady.classList.replace('btn-primary', 'btn-secondary'); // 보라색 -> 초록색
+        }
+    }
+
     // [흐름] 닉네임 입력창
     initNicknameInput(nickname) { this.inputNickname.value = nickname; }
     getNicknameInput()          { return this.inputNickname.value.trim(); }
@@ -636,8 +647,11 @@ class AppController {
         if (!me) return;
 
         const desiredReadyState = !me.isReady;
+        
         me.isReady = desiredReadyState;
         this._renderPlayersWithCallback();
+
+        this.ui.updateReadyButtonUI(desiredReadyState);
 
         this.network.updateMyState({
             id:        this.roomManager.myId,
@@ -819,6 +833,9 @@ class AppController {
         this.ui.switchScreen('screen-room');
         this.ui.updateRoomView(this.roomManager.currentRoomCode, this.roomManager.isHost);
         this.ui.setupButtons(this.roomManager.isHost);
+
+        this.ui.updateReadyButtonUI(false);
+
         this._renderPlayersWithCallback();
     }
 
