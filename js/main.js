@@ -148,7 +148,7 @@ class LobbyUI {
                 resetBtn.style.backgroundColor = 'var(--danger)'; // 빨간 버튼
 
                 resetBtn.addEventListener('click', () => {
-                    if (confirm(`[ ${displayName} ] 님의 닉네임을 강제로 초기화하시겠습니까?`)) {
+                    if (confirm(`[ ${name} ] 님의 닉네임을 강제로 초기화하시겠습니까?`)) {
                         onResetClickCallback(p.id);
                     }
                 });
