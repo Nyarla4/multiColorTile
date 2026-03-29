@@ -37,6 +37,32 @@ class SoundFX {
         osc.start();
         osc.stop(ctx.currentTime + 0.1);
     }
+
+    playError() {
+        const ctx = this._getContext();
+        if (ctx.state === 'suspended') ctx.resume();
+
+        const osc  = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        // 1. 파형 설정: 부저 소리에 어울리는 거친 느낌의 톱니파(sawtooth) 사용
+        osc.type = 'sawtooth';
+
+        // 2. 주파수(음높이): 150Hz에서 시작해 100Hz로 살짝 떨어지며 실망스러운(?) 느낌 부여
+        osc.frequency.setValueAtTime(150, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.2);
+
+        // 3. 볼륨(Gain): 시작은 0.2로, 0.2초 동안 빠르게 줄어들게 하여 뚝 끊기는 소리 방지
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+
+        // 4. 재생 시간: 0.2초 동안 재생
+        osc.start();
+        osc.stop(ctx.currentTime + 0.2);
+    }
 }
 
 
@@ -553,19 +579,24 @@ class AppController {
         if (!this.board || !this.isGameRunning) return;
 
         const targetTiles = this.board.getMatchedTilesToDestroy(index);
-        if (targetTiles.length === 0) return;
 
-        targetTiles.forEach(idx => {
-            this.board.grid[idx] = null;
-            this.ui.updateCell(idx, null);
-        });
+        if (targetTiles.length === 0) {
+            this.scoreTimer.addScore(-1);
+            this.soundFX.playError();
+        }
+        else {
+            targetTiles.forEach(idx => {
+                this.board.grid[idx] = null;
+                this.ui.updateCell(idx, null);
+            });
 
-        this.scoreTimer.addScore(targetTiles.length);
-        this.ui.updateStats(this.scoreTimer.time, this.scoreTimer.score);
-        this.soundFX.playPop();
+            this.scoreTimer.addScore(targetTiles.length);
+            this.ui.updateStats(this.scoreTimer.time, this.scoreTimer.score);
+            this.soundFX.playPop();
+        }
 
         this.myActionHistory.push({
-            timeLeft:     this.scoreTimer.time,
+            timeLeft: this.scoreTimer.time,
             indexClicked: index,
             currentScore: this.scoreTimer.score,
         });
