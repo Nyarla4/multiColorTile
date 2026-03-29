@@ -80,6 +80,7 @@ class LobbyUI {
         this.replaySlider      = document.getElementById('replay-slider');
         this.btnPlayReplay     = document.getElementById('btn-play-replay');
         this.btnBackToRoom     = document.getElementById('btn-back-to-room');
+        this.btnLeaveFromResult = document.getElementById('btn-leave-from-result'); // 🚀 [추가] 결과창 나가기 버튼
         this.toggleEmojiReplay = document.getElementById('toggle-emoji-replay');
 
         // 모달
@@ -458,6 +459,8 @@ class AppController {
         this.ui.bindBoardClick((index) => this.handleCellClick(index));
         this.ui.bindToggleEvents();
         this.ui.btnBackToRoom .addEventListener('click', () => this.handleBackToRoom());
+        // 🚀 [추가] 결과창의 나가기 버튼도 기존의 handleLeaveRoom 흐름에 그대로 연결
+        this.ui.btnLeaveFromResult?.addEventListener('click', () => this.handleLeaveRoom());
         this.ui.btnPlayReplay .addEventListener('click', () => {
             this.replayInterval ? this.pauseReplay() : this.startReplaySimulation();
         });
@@ -771,15 +774,14 @@ class AppController {
 
     // [흐름] 게임 종료 처리
     endGame() {
+        const finalScore = this.scoreTimer?.score || 0; // 내 최종 점수 보관
         this.isGameRunning = false;
-        this.scoreTimer.stop();
-        this.board      = null;
-        this.scoreTimer = null;
+        if (this.scoreTimer) this.scoreTimer.stop();
 
+        // 1. 현재 명단 스냅샷으로 결과창 렌더링 (나를 포함한 모든 인원)
         this.ui.renderResultBoard(this.roomManager.players, this.roomManager.myId, (selectedPlayer) => {
             this.selectedPlayerData = selectedPlayer;
             this.pauseReplay();
-
             const historyCount = selectedPlayer.history?.length ?? 0;
             this.ui.setupReplayUI(selectedPlayer, this.currentSeed);
             this.ui.setupReplaySlider(historyCount, (step) => {
@@ -789,6 +791,23 @@ class AppController {
             this.goToReplayStep(historyCount);
         });
 
+        // 🚀 [추가] 방장이 아니라면, 결과창을 보는 동안 '투명인간(isLeaving)' 상태로 전환
+        // 이렇게 하면 다른 사람의 실시간 순위표나 접속자 목록에서 즉시 사라집니다.
+        if (!this.roomManager.isHost) {
+            this.network.updateMyState({
+                id:        this.roomManager.myId,
+                nickname:  this.roomManager.myNickname,
+                isHost:    false,
+                isReady:   false,
+                isLeaving: true, // 👻 투명인간 모드 ON
+                score:     finalScore,
+                history:   this.myActionHistory,
+                updatedAt: Date.now(),
+            });
+        }
+
+        this.board      = null;
+        this.scoreTimer = null;
         this.ui.switchScreen('screen-result');
     }
 
@@ -850,12 +869,18 @@ class AppController {
     handleBackToRoom() {
         this.pauseReplay();
 
-        const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
-        if (me) {
-            this.network.updateMyState({
-                ...me, score: 0, history: [], isReady: false, updatedAt: Date.now(),
-            });
-        }
+        // 🚀 [수정] 내 정보를 직접 구성하여 서버에 복귀 알림을 보냅니다.
+        // score와 history를 초기화하여 대기실 상태로 만듭니다.
+        this.network.updateMyState({
+            id:        this.roomManager.myId,
+            nickname:  this.roomManager.myNickname,
+            isHost:    this.roomManager.isHost,
+            isReady:   false,
+            isLeaving: false, // 🏠 방으로 다시 정식 복귀
+            score:     0,
+            history:   [],
+            updatedAt: Date.now(),
+        });
 
         this.ui.switchScreen('screen-room');
         this.ui.updateRoomView(this.roomManager.currentRoomCode, this.roomManager.isHost);

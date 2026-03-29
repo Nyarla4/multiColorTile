@@ -74,9 +74,14 @@
                 <ul>
                     <li>강제 시작 기능 추가</li>
                 </ul>
+                <!-- <h4>v1.11.3</h4>
+                <ul>
+                    <li>게임 종료시 나간 걸로 처리</li>
+                </ul> -->
                 <h4>-버전 올리기 쪼끔 그럼-</h4>
                 <ul>
                     <li>1.9.3 ~ 1.10.3: 쿠로카 퍼플, 라떼 블루 좀 더 구분되도록 시도</li>
+                    <li>1.10.3 ~ 1.11.3: 게임 종료시 나간 걸로 처리, 대기실 누르면 복귀, 나가기 버튼 추가</li>
                 </ul>
             </div>
             <div class="modal-buttons" style="margin-top: 20px;">
@@ -217,7 +222,10 @@
             </div>
         </div>
 
-        <button id="btn-back-to-room" class="btn-primary" style="margin-top: 30px; width: 250px;">대기실로 돌아가기</button>
+        <div style="display: flex; gap: 15px; margin-top: 30px; width: 100%; max-width: 500px;">
+            <button id="btn-back-to-room" class="btn-primary" style="flex: 1;">돌아가기</button>
+            <button id="btn-leave-from-result" class="btn-danger" style="flex: 1;">나가기</button>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
