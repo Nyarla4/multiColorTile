@@ -545,7 +545,7 @@ class AppController {
                 this.goToReplayStep(step); // 원하는 시점으로 이동!
             });
 
-            this.goToReplayStep(0); // 0단계부터 시작
+            this.goToReplayStep(historyCount); // 최종시점
         });
 
         this.ui.switchScreen('screen-result');
