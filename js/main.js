@@ -81,6 +81,9 @@ class LobbyUI {
         this.toggleEmojiReplay = document.getElementById('toggle-emoji-replay');
 
         this.isEmojiMode = false;
+
+        // 모달
+        this.modalRoomNotFound = document.getElementById('modal-room-not-found');
     }
 
     // [흐름] 이모지 토글 이벤트 바인딩 — AppController.bindEvents()에서 호출
@@ -94,6 +97,33 @@ class LobbyUI {
         };
         this.toggleEmoji     ?.addEventListener('change', handleToggle);
         this.toggleEmojiReplay?.addEventListener('change', handleToggle);
+    }
+
+    // [흐름] 방 없음 모달 표시
+    showRoomNotFoundModal(onCreateCallback, onCancelCallback) {
+        this.modalRoomNotFound.style.display = 'flex';
+
+        // 버튼마다 콜백 연결 (1회용 — 중복 방지를 위해 clone으로 교체)
+        const btnCreate = this.modalRoomNotFound.querySelector('#modal-btn-create');
+        const btnCancel = this.modalRoomNotFound.querySelector('#modal-btn-cancel');
+
+        const freshCreate = btnCreate.cloneNode(true);
+        const freshCancel = btnCancel.cloneNode(true);
+        btnCreate.replaceWith(freshCreate);
+        btnCancel.replaceWith(freshCancel);
+
+        freshCreate.addEventListener('click', () => {
+            this.hideRoomNotFoundModal();
+            onCreateCallback();
+        });
+        freshCancel.addEventListener('click', () => {
+            this.hideRoomNotFoundModal();
+            onCancelCallback();
+        });
+    }
+
+    hideRoomNotFoundModal() {
+        this.modalRoomNotFound.style.display = 'none';
     }
 
     // [흐름] 화면 전환
@@ -439,10 +469,10 @@ class AppController {
 
         try {
             await this.network.connectToRoom(code, {
-                id:       this.roomManager.myId,
+                id: this.roomManager.myId,
                 nickname: this.roomManager.myNickname,
-                isHost:   false,
-                isReady:  false,
+                isHost: false,
+                isReady: false,
             });
 
             this.roomManager.setRoomState(code, false);
@@ -452,12 +482,34 @@ class AppController {
             this.ui.switchScreen('screen-room');
 
         } catch (error) {
+            this.roomManager.clearRoomState();
+
             if (error.message === 'ROOM_NOT_FOUND') {
-                alert('존재하지 않는 방 코드입니다. 코드를 확인해주세요.');
+                // 방 생성 버튼 → 해당 코드로 방장 자격 재접속
+                this.ui.showRoomNotFoundModal(
+                    async () => {
+                        try {
+                            await this.network.connectToRoom(code, {
+                                id: this.roomManager.myId,
+                                nickname: this.roomManager.myNickname,
+                                isHost: true,
+                            });
+                            this.roomManager.setRoomState(code, true);
+                            this.roomManager.addPlayer(this.roomManager.myId, true);
+                            this.ui.setupButtons(true);
+                            this._renderPlayersWithCallback();
+                            this.ui.updateRoomView(code, true);
+                            this.ui.initNicknameInput(this.roomManager.myNickname);
+                            this.ui.switchScreen('screen-room');
+                        } catch {
+                            alert('방 생성에 실패했습니다. 다시 시도해주세요.');
+                        }
+                    },
+                    () => { } // 나가기 — 모달만 닫고 로비 유지
+                );
             } else {
                 alert('방 접속에 실패했습니다. 다시 시도해주세요.');
             }
-            this.roomManager.clearRoomState();
         }
     }
 
