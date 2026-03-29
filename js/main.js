@@ -1,6 +1,34 @@
 import { GameConfig, Board, generateSeed, ScoreTimer } from './game.js';
 import { RoomManager, NetworkClient } from './network.js';
 
+// 🚀 [역할 분리] 외부 파일 없이 브라우저 내장 오디오로 효과음 발생
+class SoundFX {
+    constructor() {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        this.ctx = new AudioContext();
+    }
+
+    playPop() {
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        
+        // 경쾌하게 피치가 올라가는 "뽁!" 소리 파형
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(600, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1200, this.ctx.currentTime + 0.1);
+        
+        gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+        
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.1);
+    }
+}
+
 // [구조] UI 조작 전담
 class LobbyUI {
     constructor() {
@@ -129,7 +157,17 @@ class LobbyUI {
     // [흐름] 파괴된 셀만 개별 업데이트
     updateCell(index, color) {
         const cell = this.gameBoard.children[index];
-        if (cell) this._applyCell(cell, color);
+        if (!cell) return;
+
+        if (!color) {
+            cell.classList.add('tile-pop'); // CSS 폭발 애니메이션 트리거
+            setTimeout(() => {
+                cell.classList.remove('tile-pop');
+                this._applyCell(cell, color);
+            }, 150); // 0.15초 뒤에 실제 빈 공간(다크 회색)으로 변경
+        } else {
+            this._applyCell(cell, color);
+        }
     }
 
     // [흐름] 보드 클릭 이벤트 위임 — 앱 초기화 시 1회만 등록
@@ -245,6 +283,9 @@ class AppController {
         this.currentSeed      = null;
         this.replayInterval   = null;
         this.selectedPlayerData = null;
+
+        // 🚀 [구조 연동] 효과음 담당 객체 생성
+        this.soundFX = new SoundFX();
 
         this.bindEvents();
         this.setupNetworkCallbacks();
@@ -415,6 +456,8 @@ class AppController {
 
         this.scoreTimer.addScore(targetTiles.length);
         this.ui.updateStats(this.scoreTimer.time, this.scoreTimer.score);
+
+        this.soundFX.playPop();
 
         this.myActionHistory.push({
             timeLeft:     this.scoreTimer.time,
