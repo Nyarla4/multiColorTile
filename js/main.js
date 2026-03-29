@@ -151,13 +151,13 @@ class LobbyUI {
     getInputValue() { return this.inputRoomCode.value.trim().toUpperCase(); }
     clearInput()    { this.inputRoomCode.value = ''; }
 
-    // [흐름] 접속자 목록 렌더링
-    renderPlayers(players, myId, isHost, onResetClickCallback) {
+    // 🚀 [수정] onKickClickCallback 파라미터 추가 및 UI 간소화
+    renderPlayers(players, myId, isHost, onResetClickCallback, onKickClickCallback) {
         this.playerList.innerHTML = '';
         players.forEach(p => {
-            const li   = document.createElement('li');
+            const li = document.createElement('li');
             const name = p.nickname || p.id;
-            let text   = name;
+            let text = name;
             if (p.id === myId) text += ' (나)';
             if (p.isHost) text += ' 👑 방장';
             else text += p.isReady ? ' ✅ 준비완료' : ' ⏳ 대기중';
@@ -166,17 +166,30 @@ class LobbyUI {
             textSpan.innerText = text;
             li.appendChild(textSpan);
 
-            // 방장에게만, 본인 제외 강제 닉네임 초기화 버튼 노출
+            // 🚀 [수정] 방장 전용 관리 버튼 (이름 초기화 + 추방)
             if (isHost && p.id !== myId) {
+                const actionDiv = document.createElement('div');
+                actionDiv.className = 'player-actions';
+
+                // 간소화된 닉네임 초기화 버튼
                 const resetBtn = document.createElement('button');
-                resetBtn.innerText = '🔄 이름 초기화';
-                resetBtn.className = 'btn-reset-nickname';
+                resetBtn.innerText = '🔄 이름';
+                resetBtn.className = 'btn-action btn-reset';
                 resetBtn.addEventListener('click', () => {
-                    if (confirm(`[ ${name} ] 님의 닉네임을 강제로 초기화하시겠습니까?`)) {
-                        onResetClickCallback(p.id);
-                    }
+                    if (confirm(`[ ${name} ] 님의 닉네임을 초기화하시겠습니까?`)) onResetClickCallback(p.id);
                 });
-                li.appendChild(resetBtn);
+
+                // 강렬한 추방 버튼
+                const kickBtn = document.createElement('button');
+                kickBtn.innerText = '⛔ 추방';
+                kickBtn.className = 'btn-action btn-kick';
+                kickBtn.addEventListener('click', () => {
+                    if (confirm(`[ ${name} ] 님을 방에서 추방하시겠습니까?`)) onKickClickCallback(p.id);
+                });
+
+                actionDiv.appendChild(resetBtn);
+                actionDiv.appendChild(kickBtn);
+                li.appendChild(actionDiv);
             }
 
             this.playerList.appendChild(li);
@@ -205,7 +218,18 @@ class LobbyUI {
         this.leaderboard.innerHTML = '<strong>🏆 실시간 순위</strong>';
         sorted.forEach((p, i) => {
             const row = document.createElement('div');
-            row.innerText = `${i + 1}. ${p.nickname || p.id} (${p.score || 0})`;
+            // 이름 뒤에 (나) 추가
+            let displayName = p.nickname || p.id;
+            if (p.id === myId) displayName += ' (나)';
+            
+            row.innerText = `${i + 1}. ${displayName} (${p.score || 0})`;
+            
+            // 본인일 경우 눈에 띄게 색상 변경
+            if (p.id === myId) {
+                row.style.color = 'var(--highlight)';
+                row.style.fontWeight = 'bold';
+            }
+            
             if (p.isLeaving) row.style.textDecoration = 'line-through';
             this.leaderboard.appendChild(row);
         });
@@ -266,7 +290,17 @@ class LobbyUI {
         sorted.forEach((p, i) => {
             const card = document.createElement('div');
             card.className = i === 0 ? 'result-card first-place' : 'result-card';
-            card.innerText = `${i + 1}등: ${p.nickname || p.id} (${p.score || 0}점) ${i === 0 ? '👑' : ''}`;
+            // 이름 뒤에 (나) 추가
+            let displayName = p.nickname || p.id;
+            if (p.id === myId) displayName += ' (나)';
+            
+            card.innerText = `${i + 1}등: ${displayName} (${p.score || 0}점) ${i === 0 ? '👑' : ''}`;
+            
+            // 본인일 경우 테두리나 글씨체로 살짝 강조
+            if (p.id === myId && i !== 0) {
+                card.style.borderLeft = '3px solid var(--highlight)';
+            }
+            
             card.addEventListener('click', () => {
                 Array.from(this.resultLeaderboard.children)
                     .forEach(c => c.style.borderColor = 'transparent');
@@ -289,17 +323,18 @@ class LobbyUI {
 
     // [흐름] 리플레이 미니 보드 초기 세팅
     setupReplayUI(playerData, initialSeed) {
-        this.replayTitle.innerText       = `[ ${playerData.nickname || playerData.id} ] 님의 플레이`;
+        this.replayTitle.innerText = `[ ${playerData.nickname || playerData.id} ] 님의 플레이`;
         this.replayContent.style.display = 'flex';
-        this.replayTime.innerText        = 'Time: 120';
-        this.replayScore.innerText       = 'Score: 0';
+        this.replayTime.innerText = 'Time: 120';
+        this.replayScore.innerText = 'Score: 0';
 
         this.replayBoard.innerHTML = '';
         initialSeed.forEach((color) => {
             const cell = document.createElement('div');
-            cell.className             = 'mini-tile';
-            cell.dataset.color         = color || '';
-            cell.style.backgroundColor = color || 'transparent';
+            cell.className = 'mini-tile';
+            cell.dataset.color = color || '';
+            // 🚀 강제 'transparent' 제거 (CSS에게 디자인 위임)
+            cell.style.backgroundColor = color || '';
             cell.innerText = (color && this.isEmojiMode) ? GameConfig.emojis[color] : '';
             this.replayBoard.appendChild(cell);
         });
@@ -310,7 +345,8 @@ class LobbyUI {
         Array.from(this.replayBoard.children).forEach((cell, index) => {
             const color = gridData[index];
             cell.dataset.color         = color || '';
-            cell.style.backgroundColor = color || 'transparent';
+            // 🚀 강제 'transparent' 제거 (CSS에게 디자인 위임)
+            cell.style.backgroundColor = color || ''; 
             cell.style.transform       = 'scale(1)';
             cell.innerText = (color && this.isEmojiMode) ? GameConfig.emojis[color] : '';
         });
@@ -330,7 +366,8 @@ class LobbyUI {
             cell.style.cursor          = 'default';
             cell.innerText = this.isEmojiMode ? GameConfig.emojis[color] : '';
         } else {
-            cell.style.backgroundColor = 'transparent';
+            // 🚀 강제 'transparent' 제거 (CSS에게 디자인 위임)
+            cell.style.backgroundColor = ''; 
             cell.style.boxShadow       = '';
             cell.style.cursor          = 'pointer';
             cell.innerText             = '';
@@ -455,20 +492,38 @@ class AppController {
             this.roomManager.markPlayerAsLeft(leftId);
             this._refreshPlayerView();
         };
+
+        this.network.onPlayerKicked = (targetId) => {
+            if (targetId === this.roomManager.myId) {
+                // 내가 추방당한 경우: 알림창 띄우고 강제 퇴장 처리
+                alert('방장에 의해 추방되었습니다.');
+                this.handleLeaveRoom();
+            } else {
+                // 남이 추방당한 경우: 서버 딜레이를 기다리지 않고 내 화면에서 즉시 삭제
+                this.roomManager.markPlayerAsLeft(targetId);
+                this._refreshPlayerView();
+            }
+        };
     }
 
-    // [내부] 게임 중/대기 중 상태에 따라 적절한 뷰 갱신
+    // 🚀 [수정] renderPlayers 호출 시 추방 콜백(handleKickPlayer) 넘겨주기
     _refreshPlayerView() {
         if (this.isGameRunning) {
-            this.ui.renderLeaderboard(this.roomManager.players);
+            this.ui.renderLeaderboard(this.roomManager.players, this.roomManager.myId);
         } else {
             this.ui.renderPlayers(
                 this.roomManager.players,
                 this.roomManager.myId,
                 this.roomManager.isHost,
-                (targetId) => this.handleForceResetNickname(targetId)
+                (targetId) => this.handleForceResetNickname(targetId),
+                (targetId) => this.handleKickPlayer(targetId) // <--- 추방 로직 추가!
             );
         }
+    }
+
+    // 🚀 [추가] 방장이 추방 버튼을 눌렀을 때 실행되는 메서드
+    handleKickPlayer(targetId) {
+        this.network.broadcastKickPlayer(targetId);
     }
 
     // [내부] renderPlayers 호출 시 콜백을 항상 동일하게 넘기는 헬퍼
@@ -690,7 +745,7 @@ class AppController {
                 this.goToReplayStep(step);
             });
             this.goToReplayStep(historyCount);
-        });
+        }, this.roomManager.myId); // <--- 여기에 myId 추가
 
         this.ui.switchScreen('screen-result');
     }

@@ -419,3 +419,36 @@ ul.list-box li {
 /* 스크롤바 커스텀 (업데이트 로그 전용) */
 .changelog-content::-webkit-scrollbar { width: 6px; }
 .changelog-content::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 3px; }
+
+.player-actions {
+    display: flex;
+    gap: 5px;
+    flex-shrink: 0;
+}
+
+.btn-action {
+    padding: 4px 8px;
+    font-size: 12px;
+    border-radius: 4px;
+    font-weight: bold;
+}
+
+.btn-reset {
+    background-color: var(--primary);
+}
+.btn-reset:hover {
+    background-color: var(--primary-hover);
+}
+
+.btn-kick {
+    background-color: var(--danger);
+}
+.btn-kick:hover {
+    background-color: var(--danger-hover);
+}
+
+.tile[data-color=""],
+.mini-tile[data-color=""] {
+    background-color: rgba(0, 0, 0, 0.25); /* 보드 배경보다 살짝 어두운 색으로 격자 표시 */
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4); /* 안으로 파인 그림자 */
+}

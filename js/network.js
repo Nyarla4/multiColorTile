@@ -69,6 +69,7 @@ export class NetworkClient {
         this.onGameStart          = null;
         this.onForceNicknameReset = null;
         this.onPlayerLeft         = null;
+        this.onPlayerKicked = null; // 🚀 [추가] 추방 알림 콜백
     }
 
     // [흐름] 채널 접속 — Promise로 성공/실패를 명확히 반환
@@ -103,6 +104,10 @@ export class NetworkClient {
             });
             this.channel.on('broadcast', { event: 'player_left' }, (payload) => {
                 if (this.onPlayerLeft) this.onPlayerLeft(payload.payload.id);
+            });
+            // 🚀 [추가] 방장이 쏜 추방 방송 수신
+            this.channel.on('broadcast', { event: 'player_kicked' }, (payload) => {
+                if (this.onPlayerKicked) this.onPlayerKicked(payload.payload.targetId);
             });
 
             this.channel.subscribe(async (status) => {
@@ -145,6 +150,17 @@ export class NetworkClient {
                 }, CHECK_INTERVAL);
             });
         });
+    }
+
+    // 🚀 [추가] 방장이 특정 대상을 추방하는 방송 전송
+    async broadcastKickPlayer(targetId) {
+        if (this.channel) {
+            await this.channel.send({
+                type:    'broadcast',
+                event:   'player_kicked',
+                payload: { targetId }
+            });
+        }
     }
 
     async updateMyState(newData) {
