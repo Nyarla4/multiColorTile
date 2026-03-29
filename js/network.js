@@ -9,10 +9,10 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 export class RoomManager {
     constructor() {
         this.currentRoomCode = null;
-        this.isHost          = false;
-        this.myId            = 'P_' + crypto.randomUUID().slice(0, 8);
-        this.myNickname      = localStorage.getItem('tileclear_nickname') || this.myId;
-        this.players         = [];
+        this.isHost = false;
+        this.myId = 'P_' + crypto.randomUUID().slice(0, 8);
+        this.myNickname = localStorage.getItem('tileclear_nickname') || this.myId;
+        this.players = [];
     }
 
     // [흐름] 닉네임 저장 (유효성 검사는 호출부에서 처리)
@@ -32,7 +32,7 @@ export class RoomManager {
 
     setRoomState(code, isHost) {
         this.currentRoomCode = code;
-        this.isHost          = isHost;
+        this.isHost = isHost;
     }
 
     addPlayer(id, isHost) {
@@ -43,8 +43,8 @@ export class RoomManager {
 
     clearRoomState() {
         this.currentRoomCode = null;
-        this.isHost          = false;
-        this.players         = [];
+        this.isHost = false;
+        this.players = [];
     }
 
     syncPlayers(playersData) {
@@ -56,10 +56,12 @@ export class RoomManager {
 // [구조] Supabase 채널 통신 전담
 export class NetworkClient {
     constructor() {
-        this.channel     = null;
-        this.myLastData  = null;
+        this.channel = null;
+        this.myLastData = null;
         this.onSyncState = null;
         this.onGameStart = null;
+
+        this.onForceNicknameReset = null;//닉네임 초기화 콜백
     }
 
     connectToRoom(roomCode, myData) {
@@ -70,7 +72,7 @@ export class NetworkClient {
         });
 
         const syncCurrentState = () => {
-            const state          = this.channel.presenceState();
+            const state = this.channel.presenceState();
             const currentPlayers = [];
 
             for (const key in state) {
@@ -84,10 +86,15 @@ export class NetworkClient {
             if (this.onSyncState) this.onSyncState(currentPlayers);
         };
 
-        this.channel.on('presence',  { event: 'sync'  }, syncCurrentState);
-        this.channel.on('presence',  { event: 'leave' }, syncCurrentState);
+        this.channel.on('presence', { event: 'sync' }, syncCurrentState);
+        this.channel.on('presence', { event: 'leave' }, syncCurrentState);
         this.channel.on('broadcast', { event: 'game_start' }, (payload) => {
             if (this.onGameStart) this.onGameStart(payload.payload.seed);
+        });
+
+        // 🚀 [흐름 추가] 방장의 "닉네임 초기화" 확성기 방송 수신
+        this.channel.on('broadcast', { event: 'force_reset_nickname' }, (payload) => {
+            if (this.onForceNicknameReset) this.onForceNicknameReset(payload.payload.targetId);
         });
 
         this.channel.subscribe(async (status) => {
@@ -107,10 +114,21 @@ export class NetworkClient {
     async broadcastGameStart(seedData) {
         if (!this.channel) return;
         await this.channel.send({
-            type:    'broadcast',
-            event:   'game_start',
+            type: 'broadcast',
+            event: 'game_start',
             payload: { seed: seedData },
         });
+    }
+
+    // 🚀 [흐름 추가] 방장이 특정 대상에게 닉네임 초기화를 명령하는 방송 전송
+    async broadcastForceNicknameReset(targetId) {
+        if (this.channel) {
+            await this.channel.send({
+                type: 'broadcast',
+                event: 'force_reset_nickname',
+                payload: { targetId: targetId }
+            });
+        }
     }
 
     async disconnect() {
@@ -125,7 +143,7 @@ export class NetworkClient {
         } catch (error) {
             console.error('[Network] Disconnect Error:', error);
         } finally {
-            this.channel    = null;
+            this.channel = null;
             this.myLastData = null;
         }
     }

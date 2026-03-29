@@ -116,17 +116,45 @@ class LobbyUI {
     getInputValue() { return this.inputRoomCode.value.trim().toUpperCase(); }
     clearInput()    { this.inputRoomCode.value = ''; }
 
-    // [흐름] 접속자 목록 렌더링
-    renderPlayers(players, myId) {
+    // 🚀 [구조 수정] 방장 여부(isHost)와 클릭 콜백을 받아 초기화 버튼을 렌더링합니다.
+    renderPlayers(players, myId, isHost, onResetClickCallback) {
         this.playerList.innerHTML = '';
         players.forEach(p => {
             const li   = document.createElement('li');
+            li.style.padding = "10px";
+            li.style.marginBottom = "5px";
+            li.style.backgroundColor = "var(--bg-canvas)";
+            li.style.borderRadius = "4px";
+            li.style.display = "flex";               // 🚀 좌우 배치를 위해 flex 적용
+            li.style.justifyContent = "space-between";
+            li.style.alignItems = "center";
+
             const name = p.nickname || p.id;
             let text   = name;
             if (p.id === myId) text += ' (나)';
             if (p.isHost) text += ' 👑 방장';
             else text += p.isReady ? ' ✅ 준비완료' : ' ⏳ 대기중';
-            li.innerText = text;
+
+            const textSpan = document.createElement('span');
+            textSpan.innerText = text;
+            li.appendChild(textSpan);
+
+            // 🚀 [구조 추가] 내가 방장이고, 상대방이 내가 아닐 때만 강제 초기화 버튼 노출
+            if (isHost && p.id !== myId) {
+                const resetBtn = document.createElement('button');
+                resetBtn.innerText = '🔄 이름 초기화';
+                resetBtn.style.padding = '4px 8px';
+                resetBtn.style.fontSize = '12px';
+                resetBtn.style.backgroundColor = 'var(--danger)'; // 빨간 버튼
+
+                resetBtn.addEventListener('click', () => {
+                    if (confirm(`[ ${displayName} ] 님의 닉네임을 강제로 초기화하시겠습니까?`)) {
+                        onResetClickCallback(p.id);
+                    }
+                });
+                li.appendChild(resetBtn);
+            }
+
             this.playerList.appendChild(li);
         });
     }
@@ -346,11 +374,40 @@ class AppController {
             if (this.isGameRunning) {
                 this.ui.renderLeaderboard(this.roomManager.players);
             } else {
-                this.ui.renderPlayers(this.roomManager.players, this.roomManager.myId);
+                this.ui.renderPlayers(
+                    this.roomManager.players, 
+                    this.roomManager.myId, 
+                    this.roomManager.isHost, 
+                    (targetId) => this.handleForceResetNickname(targetId)
+                );
             }
         };
 
         this.network.onGameStart = (seed) => this.startGameProcess(seed);
+
+        // 🚀 [핵심 흐름] 누군가 나에게 닉네임 초기화 명령을 내렸을 때 스스로 실행하는 로직
+        this.network.onForceNicknameReset = (targetId) => {
+            if (targetId === this.roomManager.myId) {
+                // 1. 내 닉네임을 고유 ID로 다시 덮어씀
+                this.roomManager.setNickname(this.roomManager.myId);
+                this.ui.initNicknameInput(this.roomManager.myId);
+                
+                // 2. 초기화된 내 상태를 서버에 전파하여 모두의 화면을 갱신
+                const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
+                if (me) {
+                    this.network.updateMyState({ 
+                        ...me, 
+                        nickname: this.roomManager.myId, 
+                        updatedAt: Date.now() 
+                    });
+                }
+            }
+        };
+    }
+
+    // 🚀 [흐름 추가] 방장이 초기화 버튼을 눌렀을 때 실행됨
+    handleForceResetNickname(targetId) {
+        this.network.broadcastForceNicknameReset(targetId);
     }
 
     // [흐름] 방 생성
@@ -366,7 +423,12 @@ class AppController {
         });
 
         this.ui.setupButtons(true);
-        this.ui.renderPlayers(this.roomManager.players, this.roomManager.myId);
+        this.ui.renderPlayers(
+            this.roomManager.players,
+            this.roomManager.myId,
+            this.roomManager.isHost,
+            (targetId) => this.handleForceResetNickname(targetId)
+        );
         this.ui.updateRoomView(this.roomManager.currentRoomCode, true);
         this.ui.initNicknameInput(this.roomManager.myNickname);
         this.ui.switchScreen('screen-room');
@@ -412,7 +474,12 @@ class AppController {
 
         const desiredReadyState = !me.isReady;
         me.isReady = desiredReadyState;
-        this.ui.renderPlayers(this.roomManager.players, this.roomManager.myId);
+        this.ui.renderPlayers(
+            this.roomManager.players,
+            this.roomManager.myId,
+            this.roomManager.isHost,
+            (targetId) => this.handleForceResetNickname(targetId)
+        );
 
         this.network.updateMyState({
             id:        this.roomManager.myId,
@@ -593,7 +660,12 @@ class AppController {
         this.ui.switchScreen('screen-room');
         this.ui.updateRoomView(this.roomManager.currentRoomCode, this.roomManager.isHost);
         this.ui.setupButtons(this.roomManager.isHost);
-        this.ui.renderPlayers(this.roomManager.players, this.roomManager.myId);
+        this.ui.renderPlayers(
+            this.roomManager.players,
+            this.roomManager.myId,
+            this.roomManager.isHost,
+            (targetId) => this.handleForceResetNickname(targetId)
+        );
     }
 
     // [흐름] 방 퇴장
