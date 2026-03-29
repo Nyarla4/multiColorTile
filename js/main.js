@@ -77,7 +77,7 @@ class LobbyUI {
             if (this.toggleEmoji) this.toggleEmoji.checked = this.isEmojiMode;
             if (this.toggleEmojiReplay) this.toggleEmojiReplay.checked = this.isEmojiMode;
             
-            this.refreshAllEmojis(); // 보드 갱신
+            this._refreshAllEmojis(); // 보드 갱신
         };
 
         // 두 스위치에 동일한 이벤트 연결
