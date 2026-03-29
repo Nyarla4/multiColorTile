@@ -60,8 +60,9 @@ export class NetworkClient {
         this.myLastData = null;
         this.onSyncState = null;
         this.onGameStart = null;
+        this.onForceNicknameReset = null;
 
-        this.onForceNicknameReset = null;//닉네임 초기화 콜백
+        this.onPlayerLeft = null; // 🚀 [구조 추가] 참가자 퇴장 알림 콜백
     }
 
     connectToRoom(roomCode, myData) {
@@ -91,10 +92,12 @@ export class NetworkClient {
         this.channel.on('broadcast', { event: 'game_start' }, (payload) => {
             if (this.onGameStart) this.onGameStart(payload.payload.seed);
         });
-
-        // 🚀 [흐름 추가] 방장의 "닉네임 초기화" 확성기 방송 수신
         this.channel.on('broadcast', { event: 'force_reset_nickname' }, (payload) => {
             if (this.onForceNicknameReset) this.onForceNicknameReset(payload.payload.targetId);
+        });
+
+        this.channel.on('broadcast', { event: 'player_left' }, (payload) => {
+            if (this.onPlayerLeft) this.onPlayerLeft(payload.payload.id);
         });
 
         this.channel.subscribe(async (status) => {
@@ -131,14 +134,30 @@ export class NetworkClient {
         }
     }
 
+    // 🚀 [흐름 추가] 내가 나가기 직전에 방 전체에 쏘는 퇴장 방송
+    async broadcastPlayerLeft(targetId) {
+        if (this.channel) {
+            await this.channel.send({
+                type: 'broadcast',
+                event: 'player_left',
+                payload: { id: targetId }
+            });
+        }
+    }
+
     async disconnect() {
         if (!this.channel) return;
         try {
             if (this.myLastData) {
-                await this.channel.track({ ...this.myLastData, isLeaving: true });
-                await new Promise(resolve => setTimeout(resolve, 200));
+                    // 1. 방 전체에 "나 나간다" 확성기 발사! (이게 제일 빠릅니다)
+                    await this.broadcastPlayerLeft(this.myLastData.id);
+                    
+                    // 2. 서버 상태도 퇴장으로 기록 (이중 안전장치)
+                    await this.channel.track({ ...this.myLastData, isLeaving: true });
+                    await new Promise(resolve => setTimeout(resolve, 150));
             }
             await this.channel.unsubscribe();
+            await supabase.removeChannel(this.channel);
             await supabase.removeAllChannels();
         } catch (error) {
             console.error('[Network] Disconnect Error:', error);
