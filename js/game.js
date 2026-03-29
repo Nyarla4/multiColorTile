@@ -35,7 +35,7 @@ export const GameConfig = {
                 '🔶'  // 마름모
             ]
         },
-        default: {
+        reactkr: {
             name: '리액트KR',
             colors: [
                 '#c22628', // 시아 레드

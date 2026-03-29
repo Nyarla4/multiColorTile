@@ -87,7 +87,22 @@ class LobbyUI {
         this.btnVersion        = document.getElementById('btn-version');
         this.btnChangelogClose = document.getElementById('modal-btn-close-changelog');
 
+        // 🚀 [추가] 테마 선택기 UI 연결
+        this.themeContainer = document.getElementById('theme-selector-container');
+        this.selectTheme    = document.getElementById('select-theme');
+
         this.isEmojiMode = false;
+    }
+
+    // 🚀 [추가] 테마 목록을 드롭다운에 그려넣는 함수
+    initThemeSelector() {
+        this.selectTheme.innerHTML = ''; // 기존 목록 비우기
+        for (const [key, palette] of Object.entries(GameConfig.palettes)) {
+            const option = document.createElement('option');
+            option.value = key;
+            option.innerText = palette.name;
+            this.selectTheme.appendChild(option);
+        }
     }
 
     // [흐름] 이모지 토글 이벤트 바인딩 — AppController.bindEvents()에서 호출
@@ -390,6 +405,9 @@ class AppController {
         this.replayInterval     = null;
         this.selectedPlayerData = null;
         this.replayStep         = 0;
+
+        // 🚀 [추가] 앱이 켜질 때 드롭다운 목록 생성 함수 실행!
+        this.ui.initThemeSelector();
 
         this.bindEvents();
         this.setupNetworkCallbacks();
