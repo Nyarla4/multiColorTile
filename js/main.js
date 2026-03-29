@@ -403,6 +403,22 @@ class AppController {
                 }
             }
         };
+
+        // 🚀 [부활] 방송을 들으면 즉시 내 화면에서 삭제
+        this.network.onPlayerLeft = (leftId) => {
+            this.roomManager.markPlayerAsLeft(leftId);
+            
+            if (this.isGameRunning) {
+                this.ui.renderLeaderboard(this.roomManager.players);
+            } else {
+                this.ui.renderPlayers(
+                    this.roomManager.players, 
+                    this.roomManager.myId, 
+                    this.roomManager.isHost, 
+                    (targetId) => this.handleForceResetNickname(targetId)
+                );
+            }
+        };
     }
 
     // 🚀 [흐름 추가] 방장이 초기화 버튼을 눌렀을 때 실행됨
@@ -668,12 +684,17 @@ class AppController {
         );
     }
 
-    // [흐름] 방 퇴장
-    handleLeaveRoom() {
-        this.network.disconnect();
-        this.roomManager.clearRoomState();
+    // 🚀 [핵심 흐름 수정] async를 다시 붙이고, 화면 전환을 최우선으로 배치!
+    async handleLeaveRoom() {
+        // 1. 통신을 끊기 전에 화면부터 0초 만에 즉시 로비로 넘깁니다. (쾌적함)
         this.ui.clearInput();
         this.ui.switchScreen('screen-lobby');
+
+        // 2. 백그라운드에서 조용히 "나 나감" 확성기를 쏘고 소켓을 끊습니다.
+        await this.network.disconnect();
+        
+        // 3. 모든 통신이 끝난 후 내 로컬 데이터를 초기화하고 새 ID를 발급합니다.
+        this.roomManager.clearRoomState();
     }
 }
 
