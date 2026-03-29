@@ -7,7 +7,7 @@ export const GameConfig = {
 
     colors: [
         '#c22628', // 시아 레드
-        '#e2f0fd', // 우루 블루
+        '#86c5ff', // 우루 블루: e2f0fd에서 게임적 허용으로 진해졌음...
         '#7e7291', // 쿠로카 퍼플
         '#168f43', // 마요 그린
         '#f6d3ff', // 키라 핑크
@@ -18,7 +18,7 @@ export const GameConfig = {
 
     emojis: {
         '#c22628': '🍎',
-        '#e2f0fd': '☁️',
+        '#86c5ff': '☁️',
         '#7e7291': '🔮',
         '#168f43': '🍀',
         '#f6d3ff': '💖',
@@ -85,31 +85,47 @@ export class Board {
 }
 
 
-// [흐름] 초기 시드 배열 생성 — 동일 색 쌍(200개)을 무작위 위치에 배치
+// [흐름] 초기 시드 배열 생성 — 색상을 최대한 균등하게 분배 후 무작위 배치
 export function generateSeed(config) {
     const totalCells = config.cols * config.rows;
     const seed       = Array(totalCells).fill(null);
     const tileColors = [];
 
-    // 1. 색상 쌍 생성 (100쌍 = 200개)
-    for (let i = 0; i < config.totalTiles / 2; i++) {
-        const color = config.colors[Math.floor(Math.random() * config.colors.length)];
+    const totalPairs = config.totalTiles / 2; // 총 100쌍
+    const colorCount = config.colors.length;
+
+    // 🚀 [핵심 흐름 수정] 1. 색상을 균등하게 분배하기 위한 할당량 계산
+    // 예: 100쌍을 8가지 색상으로 나누면, 각 색상당 최소 12쌍(24개)은 보장하고, 4쌍이 남음.
+    const basePairsPerColor = Math.floor(totalPairs / colorCount);
+    const remainingPairs    = totalPairs % colorCount;
+
+    // 2. 기본 할당량만큼 모든 색상을 확정적으로 주머니에 넣기
+    for (let color of config.colors) {
+        for (let i = 0; i < basePairsPerColor; i++) {
+            tileColors.push(color, color);
+        }
+    }
+
+    // 3. 남은 찌꺼기 짝수 개수(나머지)만큼만 무작위 색상으로 채우기
+    for (let i = 0; i < remainingPairs; i++) {
+        const color = config.colors[Math.floor(Math.random() * colorCount)];
         tileColors.push(color, color);
     }
 
-    // 2. 전체 인덱스 셔플
+    // 4. 전체 인덱스 셔플 (보드 위치 섞기)
     const allIndices = Array.from({ length: totalCells }, (_, i) => i);
     for (let i = allIndices.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [allIndices[i], allIndices[j]] = [allIndices[j], allIndices[i]];
     }
 
-    // 3. 색상 배열 셔플 후 선정된 위치에 배치
+    // 5. 색상 배열 셔플 후 선정된 위치에 배치
     const selectedIndices = allIndices.slice(0, config.totalTiles);
     for (let i = tileColors.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [tileColors[i], tileColors[j]] = [tileColors[j], tileColors[i]];
     }
+    
     for (let i = 0; i < config.totalTiles; i++) {
         seed[selectedIndices[i]] = tileColors[i];
     }
