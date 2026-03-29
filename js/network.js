@@ -112,34 +112,47 @@ export class NetworkClient {
                 console.log(`[Network] ${roomCode} 채널 접속 완료`);
 
                 if (myData.isHost) {
-                    // 🚀 [조건 1] 방장: 접속 즉시 자신의 상태를 등록하여 방을 "생성"합니다.
+                    // 방장: 접속 즉시 자신의 상태를 등록
                     await this.channel.track(this.myLastData);
                     resolve(true);
                 } else {
-                    // 🚀 [조건 2] 게스트: 접속 후 0.5초 대기하며 방장 존재 여부를 확인합니다.
-                    setTimeout(async () => {
-                        const state = this.channel.presenceState();
-                        let hasHost = false;
-                        for (const key in state) {
-                            if (state[key].some(p => p.isHost && !p.isLeaving)) {
-                                hasHost = true;
-                                break;
+                    // 🚀 [개선] 0.5초 고정 대기 대신, 0.1초마다 확인하여 방장을 찾으면 딜레이 없이 즉시 입장!
+                    let checkAttempts = 0;
+                    const checkHostInterval = setInterval(async () => {
+                        try {
+                            checkAttempts++;
+                            const state = this.channel.presenceState();
+                            let hasHost = false;
+                            
+                            for (const key in state) {
+                                if (state[key].some(p => p.isHost && !p.isLeaving)) {
+                                    hasHost = true;
+                                    break;
+                                }
                             }
-                        }
 
-                        if (hasHost) {
-                            // 방장이 존재하면 정식으로 내 상태를 등록하고 입장 허가!
-                            await this.channel.track(this.myLastData);
-                            resolve(true);
-                        } else {
-                            // 방장이 없으면 튕겨냄 (유령방 접속 차단)
-                            await this.channel.unsubscribe();
-                            await window.supabase.removeChannel(this.channel);
-                            this.channel = null;
-                            this.myLastData = null;
-                            reject(new Error('ROOM_NOT_FOUND'));
+                            if (hasHost) {
+                                // 방장을 발견하면 즉시 대기를 멈추고 입장!
+                                clearInterval(checkHostInterval);
+                                await this.channel.track(this.myLastData);
+                                resolve(true);
+                            } else if (checkAttempts >= 15) { 
+                                // 1.5초(100ms * 15)가 지나도 방장이 안 오면 진짜 없는 방으로 간주
+                                clearInterval(checkHostInterval);
+                                await this.channel.unsubscribe();
+                                
+                                // 🚀 오타 수정: window. 빼고 supabase 인스턴스 직접 호출
+                                await supabase.removeChannel(this.channel); 
+                                
+                                this.channel = null;
+                                this.myLastData = null;
+                                reject(new Error('ROOM_NOT_FOUND'));
+                            }
+                        } catch (err) {
+                            clearInterval(checkHostInterval);
+                            reject(err);
                         }
-                    }, 500);
+                    }, 100);
                 }
             }
         });
@@ -192,7 +205,7 @@ export class NetworkClient {
                 await new Promise(resolve => setTimeout(resolve, 150)); 
             }
             await this.channel.unsubscribe();
-            await window.supabase.removeChannel(this.channel);
+            await supabase.removeChannel(this.channel);
         } catch (error) {
             console.error('[Network] Disconnect Error:', error);
         } finally {
