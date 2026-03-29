@@ -669,8 +669,8 @@ class AppController {
     }
 
     // [흐름] 방 퇴장
-    async handleLeaveRoom() {
-        await this.network.disconnect();
+    handleLeaveRoom() {
+        this.network.disconnect();
         this.roomManager.clearRoomState();
         this.ui.clearInput();
         this.ui.switchScreen('screen-lobby');

@@ -129,23 +129,31 @@ export class NetworkClient {
         }
     }
 
-    async disconnect() {
+    disconnect() {
         if (!this.channel) return;
-        try {
-            // 🚀 1. 공식 API: 서버에게 명단 삭제 요청
-            await this.channel.untrack();
-            
-            // 🚀 2. [추가] untrack 메시지가 서버에 도달하고 처리될 시간을 0.15초 벌어줌
-            await new Promise(resolve => setTimeout(resolve, 150));
-            
-            // 🚀 3. 안전하게 소켓 닫기
-            await this.channel.unsubscribe();
-            await supabase.removeChannel(this.channel);
-        } catch (error) {
-            console.error('[Network] Disconnect Error:', error);
-        } finally {
-            this.channel = null;
-            this.myLastData = null;
-        }
+        
+        const oldChannel = this.channel;
+        const oldData = this.myLastData;
+
+        // 내 로컬 상태는 즉시 비워버림
+        this.channel = null;
+        this.myLastData = null;
+
+        // 🚀 백그라운드에서 비동기로 조용히 처리 (UI를 절대 멈추지 않음)
+        Promise.resolve().then(async () => {
+            try {
+                if (oldData) {
+                    // 1. 남은 사람들에게 "나 나간다" 상태 던지기 (즉시 유령 삭제됨)
+                    await oldChannel.track({ ...oldData, isLeaving: true });
+                    await new Promise(resolve => setTimeout(resolve, 150));
+                }
+                // 2. 서버 명단 정리 및 소켓 해제
+                await oldChannel.untrack();
+                await oldChannel.unsubscribe();
+                await supabase.removeChannel(oldChannel);
+            } catch (error) {
+                console.error('[Network] Background Disconnect Error:', error);
+            }
+        });
     }
 }
