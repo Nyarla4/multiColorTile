@@ -1,25 +1,26 @@
 const SUPABASE_URL = 'https://mhoscqcewmrorfxcewsn.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_2e33xf0hNMg3sP4xNTIiwQ_HGhFFu12';
-if (!window.supabase) throw new Error('[Network] Supabase SDK 로드 실패');
+
+if (!window.supabase) throw new Error('[Network] Supabase SDK 로드 실패. CDN 연결 확인 필요.');
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// [구조] 방 상태 관리자
+
+// [구조] 방·플레이어 상태 관리자
 export class RoomManager {
     constructor() {
         this.currentRoomCode = null;
-        this.isHost = false;
-        this.myId = 'P_' + crypto.randomUUID().slice(0, 8);
-        this.myNickname = localStorage.getItem('tileclear_nickname') || this.myId;
-        this.players = []; // 접속자 목록 배열
+        this.isHost          = false;
+        this.myId            = 'P_' + crypto.randomUUID().slice(0, 8);
+        this.myNickname      = localStorage.getItem('tileclear_nickname') || this.myId;
+        this.players         = [];
     }
 
-    // 유효성 검사 제거 — 순수 저장만 담당
+    // [흐름] 닉네임 저장 (유효성 검사는 호출부에서 처리)
     setNickname(name) {
         this.myNickname = name;
         localStorage.setItem('tileclear_nickname', name);
     }
 
-    // [흐름] 데이터 처리
     generateRoomCode() {
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
         let code = '';
@@ -29,12 +30,11 @@ export class RoomManager {
         return code;
     }
 
-    setRoomState(code, hostStatus) {
+    setRoomState(code, isHost) {
         this.currentRoomCode = code;
-        this.isHost = hostStatus;
+        this.isHost          = isHost;
     }
 
-    // nickname 포함 — 방장 초기 객체에도 닉네임 반영
     addPlayer(id, isHost) {
         if (!this.players.find(p => p.id === id)) {
             this.players.push({ id, nickname: this.myNickname, isHost, isReady: false });
@@ -43,8 +43,8 @@ export class RoomManager {
 
     clearRoomState() {
         this.currentRoomCode = null;
-        this.isHost = false;
-        this.players = [];
+        this.isHost          = false;
+        this.players         = [];
     }
 
     syncPlayers(playersData) {
@@ -52,14 +52,14 @@ export class RoomManager {
     }
 }
 
-// network.js 내부의 NetworkClient 클래스를 아래 코드로 통째로 교체하세요.
 
+// [구조] Supabase 채널 통신 전담
 export class NetworkClient {
     constructor() {
-        this.channel = null;
+        this.channel     = null;
+        this.myLastData  = null;
         this.onSyncState = null;
-        this.onGameStart = null; // [구조 추가] 게임 시작 이벤트 수신 콜백
-        this.myLastData = null; // [구조 추가] 나의 가장 최신 상태를 기억해둡니다.
+        this.onGameStart = null;
     }
 
     connectToRoom(roomCode, myData) {
@@ -69,79 +69,64 @@ export class NetworkClient {
             config: { presence: { key: myData.id } },
         });
 
-        // 공통 함수로 분리
         const syncCurrentState = () => {
-            const state = this.channel.presenceState();
+            const state          = this.channel.presenceState();
             const currentPlayers = [];
 
             for (const key in state) {
-                const presenceArray = state[key];
-                if (presenceArray.length > 0) {
-                    const latestData = presenceArray[presenceArray.length - 1];
-                    if (!latestData.isLeaving) {
-                        currentPlayers.push(latestData);
-                    }
+                const arr = state[key];
+                if (arr.length > 0) {
+                    const latest = arr[arr.length - 1];
+                    if (!latest.isLeaving) currentPlayers.push(latest);
                 }
             }
 
             if (this.onSyncState) this.onSyncState(currentPlayers);
         };
 
-        // sync 와 leave 둘 다 같은 처리
-        this.channel.on('presence', { event: 'sync' }, syncCurrentState);
-        this.channel.on('presence', { event: 'leave' }, syncCurrentState); // ← 추가
-
+        this.channel.on('presence',  { event: 'sync'  }, syncCurrentState);
+        this.channel.on('presence',  { event: 'leave' }, syncCurrentState);
         this.channel.on('broadcast', { event: 'game_start' }, (payload) => {
             if (this.onGameStart) this.onGameStart(payload.payload.seed);
         });
 
         this.channel.subscribe(async (status) => {
             if (status === 'SUBSCRIBED') {
-                console.log(`[Network] Supabase ${roomCode} 채널 접속 완료`);
+                console.log(`[Network] ${roomCode} 채널 접속 완료`);
                 await this.channel.track(this.myLastData);
             }
         });
     }
 
     async updateMyState(newData) {
-        if (this.channel) {
-            this.myLastData = newData; // 상태를 바꿀 때마다 내 최신 상태 갱신
-            await this.channel.untrack();
-            await this.channel.track(newData);
-        }
+        if (!this.channel) return;
+        this.myLastData = newData;
+        await this.channel.track(newData);
     }
-    
-    // 🚀 [흐름 추가] 방장이 시드 배열을 담아 방 전체에 게임 시작을 알림
+
     async broadcastGameStart(seedData) {
-        if (this.channel) {
-            await this.channel.send({
-                type: 'broadcast',
-                event: 'game_start',
-                payload: { seed: seedData }
-            });
-        }
+        if (!this.channel) return;
+        await this.channel.send({
+            type:    'broadcast',
+            event:   'game_start',
+            payload: { seed: seedData },
+        });
     }
 
     async disconnect() {
-        if (this.channel) {
-            try {
-                // 🚀 [핵심 로직] 통신을 끊기 직전, 다른 사람들에게 "나 진짜 나간다" 라고 확정 데이터를 쏴줍니다.
-                if (this.myLastData) {
-                    await this.channel.track({ ...this.myLastData, isLeaving: true });
-                    await new Promise(resolve => setTimeout(resolve, 200));
-                }
-
-                // 2. 채널 구독 해지
-                await this.channel.unsubscribe();
-                await supabase.removeChannel(this.channel);
-                
-                await supabase.removeAllChannels();
-            } catch (error) {
-                console.error("[Network] Disconnect Error:", error);
-            } finally {
-                this.channel = null;
-                this.myLastData = null;
+        if (!this.channel) return;
+        try {
+            if (this.myLastData) {
+                await this.channel.track({ ...this.myLastData, isLeaving: true });
+                await new Promise(resolve => setTimeout(resolve, 200));
             }
+            await this.channel.unsubscribe();
+            await supabase.removeAllChannels();
+        } catch (error) {
+            console.error('[Network] Disconnect Error:', error);
+        } finally {
+            this.channel    = null;
+            this.myLastData = null;
         }
     }
 }

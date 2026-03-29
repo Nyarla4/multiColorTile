@@ -3,18 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <title>Tile Clear - Multiplayer</title>
-    <link rel="stylesheet" href="./css/style.css"> 
+    <link rel="stylesheet" href="./css/style.css">
 </head>
 <body>
 
+    <!-- 로비 화면 -->
     <div id="screen-lobby" class="screen active">
         <div class="panel">
             <h1>컬러 타일 멀티</h1>
-            <p class="text-muted">
-                적당히 만들엇어요
-                <br>
-                나가기 관련해서 버그 있음
-            </p>
+            <p class="text-muted">적당히 만들었어요</p>
             <br>
             <button id="btn-create-room" class="btn-secondary" style="width: 100%; padding: 15px;">새 방 생성 (방장)</button>
             <div class="form-group" style="margin-top: 30px;">
@@ -24,18 +21,19 @@
         </div>
     </div>
 
+    <!-- 대기실 화면 -->
     <div id="screen-room" class="screen">
         <div class="panel">
             <h2 id="room-title">대기실</h2>
             <p id="room-status" class="text-muted">상태 메시지</p>
-            
-            <div class="form-group" style="margin-bottom: 20px;">
+
+            <div class="form-group" style="margin-bottom: 5px;">
                 <input type="text" id="input-nickname" maxlength="10" autocomplete="off" placeholder="닉네임 변경">
                 <button id="btn-save-nickname" style="background-color: #555;">저장</button>
             </div>
-            <p id="nickname-status" class="text-muted" style="margin-top: -10px; min-height: 20px;"></p>
+            <p id="nickname-status" class="text-muted" style="min-height: 20px;"></p>
 
-            <div style="text-align: left;">
+            <div style="text-align: left; margin-top: 10px;">
                 <h3>접속자 목록</h3>
                 <ul id="player-list" class="list-box"></ul>
             </div>
@@ -47,35 +45,36 @@
             <button id="btn-leave-room" class="btn-danger" style="width: 100%; margin-top: 15px;">로비로 돌아가기</button>
         </div>
     </div>
-    
+
+    <!-- 게임 화면 -->
     <div id="screen-game" class="screen">
         <div class="game-layout">
-    
-            <div id="leaderboard" class="leaderboard-v">
-            </div>
-    
+
+            <div id="leaderboard" class="leaderboard-v"></div>
+
             <div class="play-area">
                 <div class="game-info-bar">
                     <div id="ui-time">Time: 120</div>
                     <div id="ui-score">Score: 0</div>
                 </div>
-    
+
                 <div class="toggle-container">
                     <label>
                         <input type="checkbox" id="toggle-emoji">
-                        <span>모양 표시 (이모지 모드)</span>
+                        <span>이모지 모드</span>
                     </label>
                 </div>
-    
+
                 <div id="game-board"></div>
             </div>
-    
+
         </div>
     </div>
 
+    <!-- 결과 화면 -->
     <div id="screen-result" class="screen">
         <h2 style="font-size: 2rem; color: var(--accent); margin-bottom: 30px;">최종 결과</h2>
-        
+
         <div class="result-layout">
             <div class="result-col">
                 <h3 style="text-align: center;">🏆 순위표</h3>
@@ -84,7 +83,7 @@
 
             <div class="result-col" style="display: flex; flex-direction: column; align-items: center;">
                 <h3 id="replay-title" style="color: var(--primary);">🔍 플레이어 선택</h3>
-                
+
                 <div id="replay-content" style="display: none; flex-direction: column; align-items: center; width: 100%; margin-top: 15px;">
                     <div class="game-info-bar" style="font-size: 1rem; margin-bottom: 0;">
                         <span id="replay-time">Time: -</span>
@@ -100,5 +99,6 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script type="module" src="./js/main.js"></script> </body>
+    <script type="module" src="./js/main.js"></script>
+</body>
 </html>
