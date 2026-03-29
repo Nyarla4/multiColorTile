@@ -15,6 +15,7 @@
             <h1>컬러 타일 멀티</h1>
             <p class="text-muted">
                 솔플 개발이라 딜레이가 좀 있어요<br>;ㅁ;
+                <br>레이아웃 바꿧어요 OヮO
             </p>
             <br>
             <button id="btn-create-room" class="btn-secondary" style="width: 100%; padding: 15px;">방 생성</button>
@@ -85,34 +86,53 @@
 
     <!-- 대기실 화면 -->
     <div id="screen-room" class="screen">
-        <div class="panel">
-            <h2 id="room-title">대기실</h2>
-            <button id="btn-copy-link"
-                style="padding: 4px 8px; font-size: 12px; background-color: var(--primary); border-radius: 4px; vertical-align: middle; margin-bottom: 10px;">🔗 초대 링크 복사</button>
-            <p id="room-status" class="text-muted">상태 메시지</p>
-
-            <div class="form-group" style="margin-bottom: 5px;">
-                <input type="text" id="input-nickname" maxlength="10" autocomplete="off" placeholder="닉네임 변경">
-                <button id="btn-save-nickname" style="background-color: #555;">저장</button>
-            </div>
-            <p id="nickname-status" class="text-muted" style="min-height: 20px;"></p>
-
-            <div id="theme-selector-container" style="text-align: left; margin-bottom: 15px; padding: 10px; background-color: rgba(0,0,0,0.2); border-radius: 6px;">
-                <label style="font-size: 0.9em; color: var(--text-muted); font-weight: bold; display: block; margin-bottom: 5px;">🎨 내 타일 테마 설정</label>
-                <select id="select-theme" style="width: 100%; padding: 8px; border-radius: 4px; background-color: var(--bg-dark); color: var(--text-main); border: 1px solid var(--primary); outline: none; cursor: pointer;">
-                    </select>
+        <div class="room-dashboard">
+            
+            <div class="dashboard-header">
+                <div class="info-card" id="btn-copy-link" style="cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 15px;">
+                    <div style="font-size: 2rem; background: rgba(255,255,255,0.1); padding: 15px; border-radius: 12px;">🔗</div>
+                    <div style="text-align: left;">
+                        <strong style="font-size: 1.1rem; color: var(--text-main);">초대 링크 복사</strong>
+                    </div>
+                </div>
+                
+                <div class="info-card" style="display: flex; flex-direction: column; justify-content: center;">
+                    <span class="text-muted" style="font-size: 0.85rem; font-weight: bold; letter-spacing: 1px;">ROOM CODE</span>
+                    <h2 id="room-title" style="margin: 5px 0 0 0; font-size: 2.5rem; color: var(--highlight); letter-spacing: 5px;">----</h2>
+                </div>
             </div>
 
-            <div style="text-align: left; margin-top: 10px;">
-                <h3>접속자 목록</h3>
-                <ul id="player-list" class="list-box"></ul>
+            <div class="settings-section">
+                <div class="setting-item">
+                    <label>👤 닉네임 설정</label>
+                    <div class="form-group" style="margin: 0; justify-content: flex-start;">
+                        <input type="text" id="input-nickname" maxlength="10" autocomplete="off" placeholder="닉네임 변경" style="flex: 1;">
+                        <button id="btn-save-nickname" class="btn-primary" style="white-space: nowrap;">저장</button>
+                    </div>
+                    <p id="nickname-status" class="text-muted" style="margin: 5px 0 0 0; min-height: 15px; font-size: 12px;"></p>
+                </div>
+
+                <div class="setting-item" id="theme-selector-container">
+                    <label>🎨 내 타일 테마 설정</label>
+                    <select id="select-theme" style="width: 100%; padding: 12px; border-radius: 6px; background-color: var(--bg-canvas); color: var(--text-main); border: 2px solid var(--bg-canvas); outline: none; cursor: pointer; font-size: 16px;">
+                        </select>
+                </div>
             </div>
 
-            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
-                <button id="btn-ready" class="btn-secondary" style="flex: 1;">준비</button>
-                <button id="btn-start" style="display: none; flex: 1;">게임 시작</button>
+            <div class="player-section">
+                <h3 style="margin: 0 0 10px 5px; text-align: left;">접속자 목록</h3>
+                <ul id="player-list" class="list-box wide-list"></ul>
             </div>
-            <button id="btn-leave-room" class="btn-danger" style="width: 100%; margin-top: 15px;">로비로 돌아가기</button>
+
+            <div class="bottom-action-bar">
+                <button id="btn-leave-room" style="background-color: transparent; color: var(--text-muted); border: 1px solid var(--text-muted);">나가기</button>
+                <div id="room-status" class="text-muted" style="font-weight: bold;">상태 메시지</div>
+                <div style="display: flex; gap: 10px;">
+                    <button id="btn-ready" class="btn-secondary" style="width: 180px; font-size: 1.1rem;">준비</button>
+                    <button id="btn-start" class="btn-secondary" style="display: none; width: 180px; font-size: 1.1rem;">게임 시작</button>
+                </div>
+            </div>
+
         </div>
     </div>
 

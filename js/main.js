@@ -147,7 +147,7 @@ class LobbyUI {
 
     // [흐름] 대기실 헤더 갱신
     updateRoomView(roomCode, isHost) {
-        this.roomTitle.innerText  = `방 코드: [ ${roomCode} ]`;
+        this.roomTitle.innerText  = roomCode; 
         this.roomStatus.innerText = isHost
             ? '당신은 방장입니다. 다른 플레이어를 기다리는 중...'
             : '방에 접속했습니다. 시작을 기다리는 중...';
@@ -161,16 +161,35 @@ class LobbyUI {
     renderPlayers(players, myId, isHost, onResetCallback, onKickCallback) {
         this.playerList.innerHTML = '';
         players.forEach(p => {
-            const li   = document.createElement('li');
-            const name = p.nickname || p.id;
-            let text   = name;
-            if (p.id === myId) text += ' (나)';
-            if (p.isHost) text += ' 👑 방장';
-            else text += p.isReady ? ' ✅ 준비완료' : ' ⏳ 대기중';
+            const li = document.createElement('li');
+            
+            // 왼쪽: 닉네임 표시부
+            const nameSpan = document.createElement('span');
+            let nameText = p.nickname || p.id;
+            if (p.id === myId) nameText += ' (나)';
+            nameSpan.innerText = nameText;
+            if (p.id === myId) {
+                nameSpan.style.color = 'var(--highlight)';
+                nameSpan.style.fontWeight = 'bold';
+            }
 
-            const textSpan = document.createElement('span');
-            textSpan.innerText = text;
-            li.appendChild(textSpan);
+            // 오른쪽 컨테이너: 상태(왕관/레디) + 관리 버튼
+            const rightWrap = document.createElement('div');
+            rightWrap.style.display = 'flex';
+            rightWrap.style.alignItems = 'center';
+            rightWrap.style.gap = '15px';
+
+            // 상태 표시
+            const statusSpan = document.createElement('span');
+            if (p.isHost) {
+                statusSpan.innerText = '👑 방장';
+                statusSpan.style.color = 'var(--highlight)';
+            } else {
+                statusSpan.innerText = p.isReady ? '✅ Ready' : '⏳ 대기중';
+                statusSpan.style.color = p.isReady ? 'var(--accent)' : 'var(--text-muted)';
+            }
+            statusSpan.style.fontWeight = 'bold';
+            rightWrap.appendChild(statusSpan);
 
             // 방장에게만, 본인 제외 관리 버튼 노출
             if (isHost && p.id !== myId) {
@@ -181,21 +200,24 @@ class LobbyUI {
                 resetBtn.innerText = '🔄 이름';
                 resetBtn.className = 'btn-action btn-reset';
                 resetBtn.addEventListener('click', () => {
-                    if (confirm(`[ ${name} ] 님의 닉네임을 초기화하시겠습니까?`)) onResetCallback(p.id);
+                    if (confirm(`[ ${nameText} ] 님의 닉네임을 초기화하시겠습니까?`)) onResetCallback(p.id);
                 });
 
                 const kickBtn = document.createElement('button');
                 kickBtn.innerText = '⛔ 추방';
                 kickBtn.className = 'btn-action btn-kick';
                 kickBtn.addEventListener('click', () => {
-                    if (confirm(`[ ${name} ] 님을 방에서 추방하시겠습니까?`)) onKickCallback(p.id);
+                    if (confirm(`[ ${nameText} ] 님을 방에서 추방하시겠습니까?`)) onKickCallback(p.id);
                 });
 
                 actionDiv.appendChild(resetBtn);
                 actionDiv.appendChild(kickBtn);
-                li.appendChild(actionDiv);
+                rightWrap.appendChild(actionDiv);
             }
 
+            li.appendChild(nameSpan);
+            li.appendChild(rightWrap); // 오른쪽에 상태 및 버튼 묶음 추가
+            
             this.playerList.appendChild(li);
         });
     }

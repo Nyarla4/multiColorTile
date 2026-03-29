@@ -18,7 +18,7 @@ export const GameConfig = {
                 '#1BD21D',
                 '#1B77FF',
                 '#7CD4D4',
-                '#CD71CF',
+                '#924494',
                 '#BEC0C0',
                 '#D48535',
             ],
