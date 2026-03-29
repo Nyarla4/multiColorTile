@@ -403,27 +403,6 @@ class AppController {
                 }
             }
         };
-
-        // 🚀 [핵심 흐름] 누군가 방을 나갔다는 방송을 들었을 때의 즉각 처리
-        this.network.onPlayerLeft = (leftId) => {
-            // 1. 내 로컬 명단에서 해당 유저를 즉시 날려버림
-            this.roomManager.players = this.roomManager.players.filter(p => p.id !== leftId);
-            
-            // 2. 누군가 나갔다고 잠깐 텍스트 알림 띄워주기 (디테일)
-            this.ui.showNicknameStatus("누군가 방을 떠났습니다.", true);
-            
-            // 3. 현재 화면이 어디냐에 따라 0.1초 만에 즉시 다시 그리기
-            if (this.isGameRunning) {
-                this.ui.renderLeaderboard(this.roomManager.players);
-            } else {
-                this.ui.renderPlayers(
-                    this.roomManager.players, 
-                    this.roomManager.myId, 
-                    this.roomManager.isHost, 
-                    (targetId) => this.handleForceResetNickname(targetId)
-                );
-            }
-        };
     }
 
     // 🚀 [흐름 추가] 방장이 초기화 버튼을 눌렀을 때 실행됨
