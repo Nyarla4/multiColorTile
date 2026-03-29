@@ -12,18 +12,18 @@ class SoundFX {
         if (this.ctx.state === 'suspended') this.ctx.resume();
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-        
+
         osc.connect(gain);
         gain.connect(this.ctx.destination);
-        
+
         // 경쾌하게 피치가 올라가는 "뽁!" 소리 파형
         osc.type = 'sine';
         osc.frequency.setValueAtTime(600, this.ctx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(1200, this.ctx.currentTime + 0.1);
-        
+
         gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
-        
+
         osc.start();
         osc.stop(this.ctx.currentTime + 0.1);
     }
@@ -33,50 +33,51 @@ class SoundFX {
 class LobbyUI {
     constructor() {
         // 화면
-        this.screenLobby  = document.getElementById('screen-lobby');
-        this.screenRoom   = document.getElementById('screen-room');
-        this.screenGame   = document.getElementById('screen-game');
+        this.screenLobby = document.getElementById('screen-lobby');
+        this.screenRoom = document.getElementById('screen-room');
+        this.screenGame = document.getElementById('screen-game');
         this.screenResult = document.getElementById('screen-result');
 
         // 로비
         this.inputRoomCode = document.getElementById('input-room-code');
 
         // 대기실
-        this.roomTitle      = document.getElementById('room-title');
-        this.roomStatus     = document.getElementById('room-status');
-        this.playerList     = document.getElementById('player-list');
-        this.btnReady       = document.getElementById('btn-ready');
-        this.btnStart       = document.getElementById('btn-start');
-        this.inputNickname  = document.getElementById('input-nickname');
+        this.roomTitle = document.getElementById('room-title');
+        this.roomStatus = document.getElementById('room-status');
+        this.playerList = document.getElementById('player-list');
+        this.btnReady = document.getElementById('btn-ready');
+        this.btnStart = document.getElementById('btn-start');
+        this.inputNickname = document.getElementById('input-nickname');
         this.nicknameStatus = document.getElementById('nickname-status');
 
         // 게임
-        this.uiTime      = document.getElementById('ui-time');
-        this.uiScore     = document.getElementById('ui-score');
+        this.uiTime = document.getElementById('ui-time');
+        this.uiScore = document.getElementById('ui-score');
         this.leaderboard = document.getElementById('leaderboard');
-        this.gameBoard   = document.getElementById('game-board');
+        this.gameBoard = document.getElementById('game-board');
         this.toggleEmoji = document.getElementById('toggle-emoji');
         this.toggleEmojiReplay = document.getElementById('toggle-emoji-replay');
 
         // 결과
         this.resultLeaderboard = document.getElementById('result-leaderboard');
-        this.replayTitle       = document.getElementById('replay-title');
-        this.replayContent     = document.getElementById('replay-content');
-        this.replayBoard       = document.getElementById('replay-board');
-        this.replayTime        = document.getElementById('replay-time');
-        this.replayScore       = document.getElementById('replay-score');
-        this.btnPlayReplay     = document.getElementById('btn-play-replay');
-        this.btnBackToRoom     = document.getElementById('btn-back-to-room');
+        this.replayTitle = document.getElementById('replay-title');
+        this.replayContent = document.getElementById('replay-content');
+        this.replayBoard = document.getElementById('replay-board');
+        this.replayTime = document.getElementById('replay-time');
+        this.replayScore = document.getElementById('replay-score');
+        this.btnPlayReplay = document.getElementById('btn-play-replay');
+        this.replaySlider = document.getElementById('replay-slider'); // 🚀 [구조 연동] 슬라이더 추가
+        this.btnBackToRoom = document.getElementById('btn-back-to-room');
 
         this.isEmojiMode = false;
         // 🚀 [흐름 제어] 어느 토글을 누르든 상태를 동기화하고 화면을 갱신하는 공통 함수
         const handleToggleChange = (e) => {
             this.isEmojiMode = e.target.checked;
-            
+
             // 체크박스 시각적 상태 동기화 (게임 화면 스위치 ↔ 리플레이 스위치)
             if (this.toggleEmoji) this.toggleEmoji.checked = this.isEmojiMode;
             if (this.toggleEmojiReplay) this.toggleEmojiReplay.checked = this.isEmojiMode;
-            
+
             this._refreshAllEmojis(); // 보드 갱신
         };
 
@@ -98,15 +99,15 @@ class LobbyUI {
 
     // [흐름] 대기실 헤더 갱신
     updateRoomView(roomCode, isHost) {
-        this.roomTitle.innerText  = `방 코드: [ ${roomCode} ]`;
+        this.roomTitle.innerText = `방 코드: [ ${roomCode} ]`;
         this.roomStatus.innerText = isHost
             ? '당신은 방장입니다. 다른 플레이어를 기다리는 중...'
             : '방에 접속했습니다. 시작을 기다리는 중...';
     }
 
     // [흐름] 입력값 읽기 / 초기화
-    getInputValue()  { return this.inputRoomCode.value.trim().toUpperCase(); }
-    clearInput()     { this.inputRoomCode.value = ''; }
+    getInputValue() { return this.inputRoomCode.value.trim().toUpperCase(); }
+    clearInput() { this.inputRoomCode.value = ''; }
 
     // [흐름] 접속자 목록 렌더링
     renderPlayers(players, myId) {
@@ -125,17 +126,17 @@ class LobbyUI {
 
     // [흐름] 방장/게스트 버튼 표시 분기
     setupButtons(isHost) {
-        this.btnReady.style.display = isHost ? 'none'  : 'block';
+        this.btnReady.style.display = isHost ? 'none' : 'block';
         this.btnStart.style.display = isHost ? 'block' : 'none';
     }
 
     // [흐름] 닉네임 입력창 초기화 및 피드백
     initNicknameInput(nickname) { this.inputNickname.value = nickname; }
-    getNicknameInput()          { return this.inputNickname.value.trim(); }
+    getNicknameInput() { return this.inputNickname.value.trim(); }
 
     showNicknameStatus(message, isError = false) {
-        this.nicknameStatus.innerText    = message;
-        this.nicknameStatus.style.color  = isError ? 'var(--danger)' : 'var(--accent)';
+        this.nicknameStatus.innerText = message;
+        this.nicknameStatus.style.color = isError ? 'var(--danger)' : 'var(--accent)';
         setTimeout(() => { this.nicknameStatus.innerText = ''; }, 2000);
     }
 
@@ -153,7 +154,7 @@ class LobbyUI {
 
     // [흐름] 타이머·점수 표시 갱신
     updateStats(time, score) {
-        this.uiTime.innerText  = `Time: ${time}`;
+        this.uiTime.innerText = `Time: ${time}`;
         this.uiScore.innerText = `Score: ${score}`;
     }
 
@@ -197,7 +198,7 @@ class LobbyUI {
     renderResultBoard(players, onSelectCallback) {
         const sorted = [...players].sort((a, b) => (b.score || 0) - (a.score || 0));
         this.resultLeaderboard.innerHTML = '';
-        this.replayTitle.innerText       = '🔍 복기할 플레이어를 선택하세요';
+        this.replayTitle.innerText = '🔍 복기할 플레이어를 선택하세요';
         this.replayContent.style.display = 'none';
 
         sorted.forEach((p, i) => {
@@ -214,12 +215,41 @@ class LobbyUI {
         });
     }
 
+    // 🚀 [흐름 추가] 슬라이더의 최대치(기록 갯수)를 설정하고 이벤트 연결
+    setupReplaySlider(maxSteps, onChangeCallback) {
+        if (!this.replaySlider) return;
+        this.replaySlider.max = maxSteps;
+        this.replaySlider.value = 0;
+
+        // 슬라이더를 마우스로 드래그할 때의 흐름 연결
+        this.replaySlider.oninput = (e) => {
+            onChangeCallback(parseInt(e.target.value, 10));
+        };
+    }
+
+    // 🚀 [흐름 추가] 슬라이더 위치만 스크립트에서 변경할 때
+    updateReplaySlider(step) {
+        if (this.replaySlider) this.replaySlider.value = step;
+    }
+
+    // 🚀 [흐름 변경] 뒤로 감기를 위해 미니 보드 전체의 색상과 이모지를 즉시 덮어씌움
+    redrawReplayBoard(gridData) {
+        if (!this.replayBoard) return;
+        Array.from(this.replayBoard.children).forEach((cell, index) => {
+            const color = gridData[index];
+            cell.dataset.color = color || '';
+            cell.style.backgroundColor = color ? color : 'var(--bg-canvas)';
+            cell.innerText = (color && this.isEmojiMode) ? GameConfig.emojis[color] : '';
+            cell.style.transform = 'scale(1)'; // 애니메이션 흔적 초기화
+        });
+    }
+
     // [흐름] 리플레이 미니 보드 초기 세팅
     setupReplayUI(playerData, initialSeed) {
-        this.replayTitle.innerText       = `[ ${playerData.nickname || playerData.id} ] 님의 플레이`;
+        this.replayTitle.innerText = `[ ${playerData.nickname || playerData.id} ] 님의 플레이`;
         this.replayContent.style.display = 'flex';
-        this.replayTime.innerText        = 'Time: 120';
-        this.replayScore.innerText       = 'Score: 0';
+        this.replayTime.innerText = 'Time: 120';
+        this.replayScore.innerText = 'Score: 0';
 
         this.replayBoard.innerHTML = '';
         initialSeed.forEach((color) => {
@@ -236,7 +266,7 @@ class LobbyUI {
     updateReplayCell(index, color) {
         const cell = this.replayBoard.children[index];
         if (!cell) return;
-        cell.dataset.color         = color || '';
+        cell.dataset.color = color || '';
         cell.style.backgroundColor = color || 'var(--bg-canvas)';
         cell.innerText = (color && this.isEmojiMode) ? GameConfig.emojis[color] : '';
         if (!color) {
@@ -247,7 +277,7 @@ class LobbyUI {
 
     // [흐름] 리플레이 타이머·점수 표시 갱신
     updateReplayStats(time, score) {
-        this.replayTime.innerText  = `Time: ${time}`;
+        this.replayTime.innerText = `Time: ${time}`;
         this.replayScore.innerText = `Score: ${score}`;
     }
 
@@ -256,13 +286,13 @@ class LobbyUI {
         cell.dataset.color = color || '';
         if (color) {
             cell.style.backgroundColor = color;
-            cell.style.boxShadow       = 'inset 0 0 8px rgba(0,0,0,0.4)';
-            cell.style.cursor          = 'default';
+            cell.style.boxShadow = 'inset 0 0 8px rgba(0,0,0,0.4)';
+            cell.style.cursor = 'default';
             cell.innerText = this.isEmojiMode ? GameConfig.emojis[color] : '';
         } else {
             cell.style.backgroundColor = 'var(--bg-canvas)';
-            cell.style.boxShadow       = '';
-            cell.style.cursor          = 'pointer';
+            cell.style.boxShadow = '';
+            cell.style.cursor = 'pointer';
             cell.innerText = '';
         }
     }
@@ -284,20 +314,21 @@ class LobbyUI {
 // [구조] 중앙 애플리케이션 컨트롤러
 class AppController {
     constructor() {
-        this.ui          = new LobbyUI();
+        this.ui = new LobbyUI();
         this.roomManager = new RoomManager();
-        this.network     = new NetworkClient();
+        this.network = new NetworkClient();
 
         // 게임 상태
-        this.board         = null;
-        this.scoreTimer    = null;
+        this.board = null;
+        this.scoreTimer = null;
         this.isGameRunning = false;
 
         // 리플레이 상태
-        this.myActionHistory  = [];
-        this.currentSeed      = null;
-        this.replayInterval   = null;
+        this.myActionHistory = [];
+        this.currentSeed = null;
+        this.replayInterval = null;
         this.selectedPlayerData = null;
+        this.replayStep = 0; // 🚀 [상태 추가] 현재 리플레이가 몇 번째 행동을 보여주고 있는지 기억
 
         // 🚀 [구조 연동] 효과음 담당 객체 생성
         this.soundFX = new SoundFX();
@@ -308,18 +339,22 @@ class AppController {
 
     // [흐름] 이벤트 바인딩 — 앱 초기화 시 1회 실행
     bindEvents() {
-        document.getElementById('btn-create-room')  .addEventListener('click',   () => this.handleCreateRoom());
-        document.getElementById('btn-join-room')    .addEventListener('click',   () => this.handleJoinRoom());
-        document.getElementById('btn-leave-room')   .addEventListener('click',   () => this.handleLeaveRoom());
-        document.getElementById('btn-ready')        .addEventListener('click',   () => this.handleReadyToggle());
-        document.getElementById('btn-start')        .addEventListener('click',   () => this.handleGameStart());
-        document.getElementById('btn-save-nickname').addEventListener('click',   () => this.handleSaveNickname());
-        document.getElementById('input-nickname')   .addEventListener('keydown', (e) => { if (e.key === 'Enter') this.handleSaveNickname(); });
+        document.getElementById('btn-create-room').addEventListener('click', () => this.handleCreateRoom());
+        document.getElementById('btn-join-room').addEventListener('click', () => this.handleJoinRoom());
+        document.getElementById('btn-leave-room').addEventListener('click', () => this.handleLeaveRoom());
+        document.getElementById('btn-ready').addEventListener('click', () => this.handleReadyToggle());
+        document.getElementById('btn-start').addEventListener('click', () => this.handleGameStart());
+        document.getElementById('btn-save-nickname').addEventListener('click', () => this.handleSaveNickname());
+        document.getElementById('input-nickname').addEventListener('keydown', (e) => { if (e.key === 'Enter') this.handleSaveNickname(); });
 
         this.ui.bindBoardClick((index) => this.handleCellClick(index));
-        this.ui.btnBackToRoom .addEventListener('click', () => this.handleBackToRoom());
-        this.ui.btnPlayReplay .addEventListener('click', () => {
-            if (this.selectedPlayerData) this.startReplaySimulation(this.selectedPlayerData);
+        this.ui.btnBackToRoom.addEventListener('click', () => this.handleBackToRoom());
+        this.ui.btnPlayReplay.addEventListener('click', () => {
+            if (this.replayInterval) {
+                this.pauseReplay();
+            } else {
+                this.startReplaySimulation();
+            }
         });
     }
 
@@ -346,9 +381,9 @@ class AppController {
         this.roomManager.addPlayer(this.roomManager.myId, true);
 
         this.network.connectToRoom(newCode, {
-            id:       this.roomManager.myId,
+            id: this.roomManager.myId,
             nickname: this.roomManager.myNickname,
-            isHost:   true,
+            isHost: true,
         });
 
         this.ui.setupButtons(true);
@@ -366,10 +401,10 @@ class AppController {
         this.roomManager.setRoomState(code, false);
 
         this.network.connectToRoom(code, {
-            id:       this.roomManager.myId,
+            id: this.roomManager.myId,
             nickname: this.roomManager.myNickname,
-            isHost:   false,
-            isReady:  false,
+            isHost: false,
+            isReady: false,
         });
 
         this.ui.setupButtons(false);
@@ -405,17 +440,17 @@ class AppController {
         this.ui.renderPlayers(this.roomManager.players, this.roomManager.myId);
 
         this.network.updateMyState({
-            id:       this.roomManager.myId,
+            id: this.roomManager.myId,
             nickname: this.roomManager.myNickname,
-            isHost:   false,
-            isReady:  desiredReadyState,
+            isHost: false,
+            isReady: desiredReadyState,
             updatedAt: Date.now(),
         });
     }
 
     // [흐름] 게임 시작 (방장 전용)
     handleGameStart() {
-        const guests   = this.roomManager.players.filter(p => !p.isHost);
+        const guests = this.roomManager.players.filter(p => !p.isHost);
         const allReady = guests.length > 0 && guests.every(p => p.isReady);
 
         if (!allReady && guests.length > 0) {
@@ -430,11 +465,11 @@ class AppController {
 
     // [흐름] 게임 초기화 및 화면 전환
     startGameProcess(seed) {
-        this.isGameRunning   = true;
-        this.currentSeed     = seed;
+        this.isGameRunning = true;
+        this.currentSeed = seed;
         this.myActionHistory = [];
 
-        this.board      = new Board(GameConfig);
+        this.board = new Board(GameConfig);
         this.board.initializeWithSeed(seed);
         this.scoreTimer = new ScoreTimer(GameConfig);
 
@@ -475,7 +510,7 @@ class AppController {
         this.soundFX.playPop();
 
         this.myActionHistory.push({
-            timeLeft:     this.scoreTimer.time,
+            timeLeft: this.scoreTimer.time,
             indexClicked: index,
             currentScore: this.scoreTimer.score,
         });
@@ -484,8 +519,8 @@ class AppController {
         if (me) {
             this.network.updateMyState({
                 ...me,
-                score:     this.scoreTimer.score,
-                history:   this.myActionHistory,
+                score: this.scoreTimer.score,
+                history: this.myActionHistory,
                 updatedAt: Date.now(),
             });
         }
@@ -498,66 +533,101 @@ class AppController {
 
         this.ui.renderResultBoard(this.roomManager.players, (selectedPlayer) => {
             this.selectedPlayerData = selectedPlayer;
-            if (this.replayInterval) clearInterval(this.replayInterval);
+            this.pauseReplay();
+
+            // UI 초기화
             this.ui.setupReplayUI(selectedPlayer, this.currentSeed);
-            this.ui.btnPlayReplay.disabled  = false;
-            this.ui.btnPlayReplay.innerText = '▶ 고속 재생 시작';
+
+            // 🚀 슬라이더 초기화 및 드래그 콜백 연결
+            const historyCount = selectedPlayer.history ? selectedPlayer.history.length : 0;
+            this.ui.setupReplaySlider(historyCount, (step) => {
+                this.pauseReplay(); // 드래그하면 자동 재생 멈춤
+                this.goToReplayStep(step); // 원하는 시점으로 이동!
+            });
+
+            this.goToReplayStep(0); // 0단계부터 시작
         });
 
         this.ui.switchScreen('screen-result');
-        this.board      = null;
+        this.board = null;
         this.scoreTimer = null;
     }
 
-    // [흐름] 리플레이 시뮬레이션 실행
-    startReplaySimulation(playerData) {
-        if (!this.currentSeed || !playerData.history || playerData.history.length === 0) {
-            alert('기록된 행동이 없습니다.');
-            return;
-        }
+    // 🚀 [핵심 흐름] 지정된 시점(step)까지 0.001초만에 가상으로 계산해서 화면에 뿌려줌
+    goToReplayStep(step) {
+        if (!this.selectedPlayerData || !this.currentSeed) return;
 
-        this.ui.btnPlayReplay.disabled  = true;
-        this.ui.btnPlayReplay.innerText = '재생 중...';
-        this.ui.setupReplayUI(playerData, this.currentSeed);
+        this.replayStep = step;
+        this.ui.updateReplaySlider(step);
 
+        // 가상 보드를 꺼내고 초기 시드로 세팅
         const replayBoard = new Board(GameConfig);
         replayBoard.initializeWithSeed(this.currentSeed);
 
-        const actions = [...playerData.history];
-        let actionIndex = 0;
+        let currentScore = 0;
+        let currentTime = GameConfig.timeLimit;
+        const actions = this.selectedPlayerData.history || [];
+
+        // 🚀 0번부터 현재 요청한 step까지 보드를 부수는 과정을 초고속 시뮬레이션!
+        for (let i = 0; i < step; i++) {
+            const action = actions[i];
+            const targetTiles = replayBoard.getMatchedTilesToDestroy(action.indexClicked);
+            targetTiles.forEach(idx => replayBoard.grid[idx] = null);
+            currentScore = action.currentScore;
+            currentTime = action.timeLeft;
+        }
+
+        // 연산이 끝난 최종 보드 상태와 점수를 UI에 통째로 넘겨서 그립니다.
+        this.ui.redrawReplayBoard(replayBoard.grid);
+        this.ui.updateReplayStats(currentTime, currentScore);
+    }
+
+    // 🚀 [흐름] 자동 재생 시작
+    startReplaySimulation() {
+        const actions = this.selectedPlayerData?.history || [];
+        if (actions.length === 0) {
+            alert("기록된 행동이 없습니다.");
+            return;
+        }
+
+        // 끝까지 봤는데 다시 재생을 누르면 처음으로 되돌림
+        if (this.replayStep >= actions.length) {
+            this.goToReplayStep(0);
+        }
+
+        this.ui.btnPlayReplay.innerText = "⏸ 일시정지";
 
         this.replayInterval = setInterval(() => {
-            if (actionIndex >= actions.length) {
-                clearInterval(this.replayInterval);
-                this.ui.btnPlayReplay.disabled  = false;
-                this.ui.btnPlayReplay.innerText = '↻ 다시 보기';
+            if (this.replayStep >= actions.length) {
+                this.pauseReplay();
+                this.ui.btnPlayReplay.innerText = "↻ 다시 보기";
                 return;
             }
+            this.goToReplayStep(this.replayStep + 1);
+        }, 200); // 0.2초 간격
+    }
 
-            const action      = actions[actionIndex];
-            const targetTiles = replayBoard.getMatchedTilesToDestroy(action.indexClicked);
-
-            targetTiles.forEach(idx => {
-                replayBoard.grid[idx] = null;
-                this.ui.updateReplayCell(idx, null);
-            });
-
-            this.ui.updateReplayStats(action.timeLeft, action.currentScore);
-            actionIndex++;
-        }, 200);
+    // 🚀 [흐름] 자동 재생 일시정지
+    pauseReplay() {
+        if (this.replayInterval) {
+            clearInterval(this.replayInterval);
+            this.replayInterval = null;
+        }
+        this.ui.btnPlayReplay.innerText = "▶ 재생 시작";
     }
 
     // [흐름] 결과 화면 → 대기실 복귀
     handleBackToRoom() {
+        this.pauseReplay(); // 🚀 나갈 때 일시정지
         if (this.replayInterval) clearInterval(this.replayInterval);
 
         const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
         if (me) {
             this.network.updateMyState({
                 ...me,
-                score:     0,
-                history:   [],
-                isReady:   false,
+                score: 0,
+                history: [],
+                isReady: false,
                 updatedAt: Date.now(),
             });
         }
