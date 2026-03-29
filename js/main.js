@@ -316,12 +316,10 @@ class LobbyUI {
         this.replayScore.innerText       = 'Score: 0';
 
         this.replayBoard.innerHTML = '';
-        initialSeed.forEach((color) => {
+        initialSeed.forEach((tileIndex) => { // 🚀 변수명을 color에서 tileIndex로
             const cell = document.createElement('div');
-            cell.className             = 'mini-tile';
-            cell.dataset.color         = color || '';
-            cell.style.backgroundColor = color || '';
-            cell.innerText = (color && this.isEmojiMode) ? GameConfig.emojis[color] : '';
+            cell.className = 'mini-tile';
+            this._applyCell(cell, tileIndex); // 🚀 _applyCell로 로직 통일
             this.replayBoard.appendChild(cell);
         });
     }
@@ -329,11 +327,9 @@ class LobbyUI {
     // [흐름] 특정 시점의 보드 상태를 미니 보드에 전체 덮어쓰기
     redrawReplayBoard(gridData) {
         Array.from(this.replayBoard.children).forEach((cell, index) => {
-            const color = gridData[index];
-            cell.dataset.color         = color || '';
-            cell.style.backgroundColor = color || '';
-            cell.style.transform       = 'scale(1)';
-            cell.innerText = (color && this.isEmojiMode) ? GameConfig.emojis[color] : '';
+            const tileIndex = gridData[index];
+            this._applyCell(cell, tileIndex); // 🚀 _applyCell로 로직 통일
+            cell.style.transform = 'scale(1)';
         });
     }
 
@@ -344,12 +340,16 @@ class LobbyUI {
     }
 
     // [내부] 셀 스타일 공통 적용
-    _applyCell(cell, color) {
-        cell.dataset.color = color || '';
-        if (color) {
-            cell.style.backgroundColor = color;
+    _applyCell(cell, tileIndex) {
+        cell.dataset.color = tileIndex !== null ? tileIndex : '';
+        
+        // 🚀 자바스크립트에서 0은 false이므로 반드시 !== null 로 체크해야 합니다.
+        if (tileIndex !== null) {
+            const activePalette = GameConfig.palettes[GameConfig.activePaletteId];
+            
+            cell.style.backgroundColor = activePalette.colors[tileIndex];
             cell.style.cursor          = 'default';
-            cell.innerText = this.isEmojiMode ? GameConfig.emojis[color] : '';
+            cell.innerText = this.isEmojiMode ? activePalette.emojis[tileIndex] : '';
         } else {
             cell.style.backgroundColor = '';
             cell.style.boxShadow       = '';
@@ -361,9 +361,11 @@ class LobbyUI {
     // [내부] 이모지 모드 토글 시 특정 보드의 전체 셀 텍스트 갱신
     _refreshBoard(board) {
         if (!board) return;
+        const activePalette = GameConfig.palettes[GameConfig.activePaletteId];
         Array.from(board.children).forEach(cell => {
-            const color = cell.dataset.color;
-            cell.innerText = (color && this.isEmojiMode) ? GameConfig.emojis[color] : '';
+            const tileIndex = cell.dataset.color;
+            // 빈칸("")이 아닐 때만 이모지 업데이트
+            cell.innerText = (tileIndex !== '' && this.isEmojiMode) ? activePalette.emojis[tileIndex] : '';
         });
     }
 }
@@ -413,6 +415,14 @@ class AppController {
         this.ui.btnVersion        ?.addEventListener('click', () => this.ui.showChangelog());
         this.ui.btnChangelogClose ?.addEventListener('click', () => this.ui.hideChangelog());
         this.ui.btnCopyLink       ?.addEventListener('click', () => this.handleCopyLink());
+
+        // 🚀 [추가] 테마를 고르면 즉시 전역 설정에 반영하고 게임판/리플레이판 새로고침! (게임 도중에도 변경 가능)
+        this.ui.selectTheme?.addEventListener('change', (e) => {
+            GameConfig.activePaletteId = e.target.value;
+            // 테마가 바뀌면 색상과 이모지를 모두 다시 그려야 하므로 보드 전체를 리렌더링
+            if (this.board) this.ui.initBoard(this.board.grid);
+            if (this.selectedPlayerData) this.goToReplayStep(this.replayStep);
+        });
     }
 
     // [흐름] 네트워크 콜백 설정

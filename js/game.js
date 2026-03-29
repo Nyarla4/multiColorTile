@@ -5,29 +5,65 @@ export const GameConfig = {
     totalTiles: 200,
     timeLimit:  120,
 
-    colors: [
-        '#c22628', // 시아 레드
-        '#86c5ff', // 우루 블루: e2f0fd에서 게임적 허용으로 진해졌음...
-        '#7e7291', // 쿠로카 퍼플
-        '#168f43', // 마요 그린
-        '#f6d3ff', // 키라 핑크
-        '#7f97ac', // 라떼 블루
-        '#fff3b2', // 나오 옐로
-        '#f27127', // 무무 오렌지
-    ],
+    activePaletteId: 'default', // 각자의 로컬 환경에서 선택된 테마
 
-    emojis: {
-        '#c22628': '🍎',
-        '#86c5ff': '☁️',
-        '#7e7291': '🔮',
-        '#168f43': '🍀',
-        '#f6d3ff': '💖',
-        '#7f97ac': '🐯',
-        '#fff3b2': '🎫',
-        '#f27127': '🧡',
-    },
+    palettes: {
+        default: {
+            name: '기본',
+            colors: [
+                '#FDA41B',
+                '#FD6E6E',
+                '#CCCE6E',
+                '#FD8FFF',
+                '#1BD21D',
+                '#1B77FF',
+                '#7CD4D4',
+                '#CD71CF',
+                '#BEC0C0',
+                '#D48535',
+            ],
+            emojis: [
+                '⭐', // 별
+                '⏹️', // 네모
+                '🔼', // 위 세모
+                '➖', // 가로줄
+                '⏺️', // 동그라미
+                '🌙', // 반원(돔) 형태와 비슷한 반달
+                '⏸️', // 세로줄 (일시정지 기호 활용)
+                '🔽', // 아래 세모
+                '🟰', // 등호(=)
+                '🔶'  // 마름모
+            ]
+        },
+        default: {
+            name: '리액트KR',
+            colors: [
+                '#c22628', // 시아 레드
+                '#86c5ff', // 우루 블루: e2f0fd에서 게임적 허용으로 진해졌음...
+                '#7e7291', // 쿠로카 퍼플
+                '#168f43', // 마요 그린
+                '#f6d3ff', // 키라 핑크
+                '#7f97ac', // 라떼 블루
+                '#fff3b2', // 나오 옐로
+                '#f27127', // 무무 오렌지
+                '#fcfafe', // 임시 텐텐 화이트
+                '#1a1717', // 임시 텐텐 블랙
+            ],
+            emojis: [
+                '🍎',
+                '☁️',
+                '🔮',
+                '🍀',
+                '💖',
+                '🐯',
+                '🎫',
+                '🧡',
+                '❄️', // 임시 텐텐 화이트
+                '🍙', // 임시 텐텐 블랙
+            ],
+        }
+    }
 };
-
 
 // [구조] 보드 상태 및 십자 탐색 로직
 export class Board {
@@ -89,45 +125,41 @@ export class Board {
 export function generateSeed(config) {
     const totalCells = config.cols * config.rows;
     const seed       = Array(totalCells).fill(null);
-    const tileColors = [];
+    const tileIndices = []; // 🚀 색상 대신 0, 1, 2... 숫자를 담을 배열
 
-    const totalPairs = config.totalTiles / 2; // 총 100쌍
-    const colorCount = config.colors.length;
+    const totalPairs = config.totalTiles / 2;
+    // 모든 테마가 같은 개수의 색상을 가진다고 가정 (현재 8개)
+    const colorCount = config.palettes.default.colors.length; 
 
-    // 🚀 [핵심 흐름 수정] 1. 색상을 균등하게 분배하기 위한 할당량 계산
-    // 예: 100쌍을 8가지 색상으로 나누면, 각 색상당 최소 12쌍(24개)은 보장하고, 4쌍이 남음.
     const basePairsPerColor = Math.floor(totalPairs / colorCount);
     const remainingPairs    = totalPairs % colorCount;
 
-    // 2. 기본 할당량만큼 모든 색상을 확정적으로 주머니에 넣기
-    for (let color of config.colors) {
+    // 🚀 [핵심] 색상 코드가 아니라 0 ~ 7 까지의 숫자(int)를 넣습니다.
+    for (let c = 0; c < colorCount; c++) {
         for (let i = 0; i < basePairsPerColor; i++) {
-            tileColors.push(color, color);
+            tileIndices.push(c, c); 
         }
     }
-
-    // 3. 남은 찌꺼기 짝수 개수(나머지)만큼만 무작위 색상으로 채우기
     for (let i = 0; i < remainingPairs; i++) {
-        const color = config.colors[Math.floor(Math.random() * colorCount)];
-        tileColors.push(color, color);
+        const c = Math.floor(Math.random() * colorCount);
+        tileIndices.push(c, c);
     }
 
-    // 4. 전체 인덱스 셔플 (보드 위치 섞기)
+    // 인덱스 셔플 및 배치 (기존 로직 동일)
     const allIndices = Array.from({ length: totalCells }, (_, i) => i);
     for (let i = allIndices.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [allIndices[i], allIndices[j]] = [allIndices[j], allIndices[i]];
     }
 
-    // 5. 색상 배열 셔플 후 선정된 위치에 배치
     const selectedIndices = allIndices.slice(0, config.totalTiles);
-    for (let i = tileColors.length - 1; i > 0; i--) {
+    for (let i = tileIndices.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [tileColors[i], tileColors[j]] = [tileColors[j], tileColors[i]];
+        [tileIndices[i], tileIndices[j]] = [tileIndices[j], tileIndices[i]];
     }
     
     for (let i = 0; i < config.totalTiles; i++) {
-        seed[selectedIndices[i]] = tileColors[i];
+        seed[selectedIndices[i]] = tileIndices[i]; // seed 배열에는 이제 0~7 숫자가 들어갑니다.
     }
 
     return seed;
