@@ -5,35 +5,17 @@ export const GameConfig = {
     totalTiles: 200,
     timeLimit:  120,
 
-    activePaletteId: 'default', // 각자의 로컬 환경에서 선택된 테마
+    activePaletteId: 'default',
 
     palettes: {
         default: {
             name: '기본',
             colors: [
-                '#FDA41B',
-                '#FD6E6E',
-                '#CCCE6E',
-                '#FD8FFF',
-                '#1BD21D',
-                '#1B77FF',
-                '#7CD4D4',
-                '#924494',
-                '#BEC0C0',
-                '#D48535',
+                '#FDA41B', '#FD6E6E', '#CCCE6E', '#FD8FFF',
+                '#1BD21D', '#1B77FF', '#7CD4D4', '#924494',
+                '#BEC0C0', '#D48535',
             ],
-            emojis: [
-                '★', // 별
-                '■', // 네모
-                '▲', // 위 세모
-                '▬', // 가로줄 (일반 - 보다 두꺼운 텍스트 블록)
-                '●', // 동그라미
-                '◓', // 반원/돔 (상단 반원 기호)
-                '▮', // 세로줄 (수직 텍스트 블록)
-                '▼', // 아래 세모
-                '＝', // 등호 (일반 = 보다 넓은 전각 문자 사용)
-                '◆'  // 마름모
-            ]
+            emojis: ['★', '■', '▲', '▬', '●', '◓', '▮', '▼', '＝', '◆'],
         },
         reactkr: {
             name: '리액트KR',
@@ -49,21 +31,21 @@ export const GameConfig = {
                 '#fcfafe', // 임시 텐텐 화이트
                 '#1a1717', // 임시 텐텐 블랙
             ],
-            emojis: [
-                '🍎',
-                '☁️',
-                '🔮',
-                '🍀',
-                '💖',
-                '🐯',
-                '🎫',
-                '🧡',
-                '❄️', // 임시 텐텐 화이트
-                '🍙', // 임시 텐텐 블랙
-            ],
-        }
-    }
+            emojis: ['🍎', '☁️', '🔮', '🍀', '💖', '🐯', '🎫', '🧡', '❄️', '🍙'],
+        },
+    },
+
+    // [흐름] 현재 활성 팔레트 반환 헬퍼
+    getActivePalette() {
+        return this.palettes[this.activePaletteId];
+    },
+
+    // [흐름] 팔레트의 색상 수 반환 — generateSeed가 활성 팔레트 기준으로 동작하도록
+    getColorCount() {
+        return this.getActivePalette().colors.length;
+    },
 };
+
 
 // [구조] 보드 상태 및 십자 탐색 로직
 export class Board {
@@ -121,23 +103,22 @@ export class Board {
 }
 
 
-// [흐름] 초기 시드 배열 생성 — 색상을 최대한 균등하게 분배 후 무작위 배치
+// [흐름] 초기 시드 배열 생성 — 색상을 균등하게 분배 후 무작위 배치
+// grid 값: 0 ~ (colorCount-1) 의 숫자 index, 빈 칸은 null
 export function generateSeed(config) {
-    const totalCells = config.cols * config.rows;
-    const seed       = Array(totalCells).fill(null);
-    const tileIndices = []; // 🚀 색상 대신 0, 1, 2... 숫자를 담을 배열
+    const totalCells  = config.cols * config.rows;
+    const seed        = Array(totalCells).fill(null);
+    const tileIndices = [];
 
-    const totalPairs = config.totalTiles / 2;
-    // 모든 테마가 같은 개수의 색상을 가진다고 가정 (현재 8개)
-    const colorCount = config.palettes.default.colors.length; 
+    const totalPairs  = config.totalTiles / 2;
+    const colorCount  = config.getColorCount(); // 활성 팔레트 기준으로 색상 수 계산
 
     const basePairsPerColor = Math.floor(totalPairs / colorCount);
     const remainingPairs    = totalPairs % colorCount;
 
-    // 🚀 [핵심] 색상 코드가 아니라 0 ~ 7 까지의 숫자(int)를 넣습니다.
     for (let c = 0; c < colorCount; c++) {
         for (let i = 0; i < basePairsPerColor; i++) {
-            tileIndices.push(c, c); 
+            tileIndices.push(c, c);
         }
     }
     for (let i = 0; i < remainingPairs; i++) {
@@ -145,7 +126,6 @@ export function generateSeed(config) {
         tileIndices.push(c, c);
     }
 
-    // 인덱스 셔플 및 배치 (기존 로직 동일)
     const allIndices = Array.from({ length: totalCells }, (_, i) => i);
     for (let i = allIndices.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -157,9 +137,9 @@ export function generateSeed(config) {
         const j = Math.floor(Math.random() * (i + 1));
         [tileIndices[i], tileIndices[j]] = [tileIndices[j], tileIndices[i]];
     }
-    
+
     for (let i = 0; i < config.totalTiles; i++) {
-        seed[selectedIndices[i]] = tileIndices[i]; // seed 배열에는 이제 0~7 숫자가 들어갑니다.
+        seed[selectedIndices[i]] = tileIndices[i];
     }
 
     return seed;
@@ -169,19 +149,16 @@ export function generateSeed(config) {
 // [구조] 타이머 및 점수 관리
 export class ScoreTimer {
     constructor(config) {
-        this.timeLimit  = config.timeLimit; // 원래 제한 시간(120초) 보관
+        this.timeLimit  = config.timeLimit;
         this.time       = config.timeLimit;
         this.score      = 0;
         this.intervalId = null;
-        this.endTime    = 0; // 🚀 현실 시간 기준의 종료 시각을 저장할 변수
+        this.endTime    = 0;
     }
 
     start(callback) {
-        // 🚀 타이머가 시작된 '현실 시간 + 120초'를 목표 종료 시각으로 절대 못 박음
+        // 현실 시간 기준 종료 시각을 절대값으로 고정 — setInterval 지연 누적 방지
         this.endTime = Date.now() + (this.timeLimit * 1000);
-
-        // UI 갱신을 위해 1초(1000ms)마다 콜백 실행
-        // (실행 주기가 밀려도 남은 시간 계산은 Date.now()로 하므로 절대 안 밀림!)
         this.intervalId = setInterval(() => {
             this._updateTime();
             callback();
@@ -195,21 +172,15 @@ export class ScoreTimer {
 
     addScore(amount) { this.score += amount; }
 
-    // 🚀 단순히 -1을 하는 게 아니라, (목표 시각 - 현재 시각)을 계산
+    tick() {
+        this._updateTime();
+        return this.time;
+    }
+
+    isTimeUp() { return this.time <= 0; }
+
     _updateTime() {
-        const now = Date.now();
-        // 남은 밀리초를 초로 변환하고 올림 처리 (0 이하로 안 떨어지게 Math.max 적용)
-        const remaining = Math.ceil((this.endTime - now) / 1000);
+        const remaining = Math.ceil((this.endTime - Date.now()) / 1000);
         this.time = Math.max(0, remaining);
-    }
-
-    // 🚀 main.js가 매 초마다 호출하는 메서드
-    tick() { 
-        this._updateTime(); // 틱이 불릴 때마다 현실 시간 기준으로 시간 갱신
-        return this.time; 
-    }
-
-    isTimeUp() { 
-        return this.time <= 0; 
     }
 }
