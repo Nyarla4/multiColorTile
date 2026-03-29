@@ -131,13 +131,13 @@ export class NetworkClient {
     async disconnect() {
         if (!this.channel) return;
         try {
-            if (this.myLastData) {
-                await this.channel.track({ ...this.myLastData, isLeaving: true });
-                await new Promise(resolve => setTimeout(resolve, 150));
-            }
+            // 🚀 1. 공식 API: 서버에게 "내 상태(Presence)를 명단에서 즉시 지워줘!" 라고 요청
+            await this.channel.untrack();
+            
+            // 🚀 2. 명단에서 빠진 것을 확인한 후, 안전하게 연결 해제 및 채널 정리
             await this.channel.unsubscribe();
-            await supabase.removeChannel(this.channel);
-            await supabase.removeAllChannels();
+            await supabase.removeChannel(this.channel); 
+            // 주의: removeAllChannels()는 다른 기능 충돌 위험이 있어 제외했습니다.
         } catch (error) {
             console.error('[Network] Disconnect Error:', error);
         } finally {
