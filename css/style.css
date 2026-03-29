@@ -134,13 +134,6 @@ ul.list-box li {
     align-items: center;
 }
 
-.btn-reset-nickname {
-    padding: 4px 8px;
-    font-size: 12px;
-    background-color: var(--danger);
-    flex-shrink: 0;
-}
-
 /* ───────────── 게임 화면 레이아웃 ───────────── */
 
 .game-layout {
