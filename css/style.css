@@ -165,7 +165,18 @@ ul.list-box li {
 
 /* 실시간 랭킹바 (좌측) */
 .leaderboard-v {
-    width: 250px;
+    /* 🚀 핵심: 랭킹판의 너비를 고정하여 점수가 늘어나도 우측을 밀어내지 않게 만듭니다 */
+    width: 220px; 
+    min-width: 220px;
+
+    /* 🚀 화면이 좁아져도 랭킹판이 찌그러지며 너비가 변하는 것을 방지합니다 */
+    flex-shrink: 0; 
+    
+    /* 혹시 닉네임이 너무 길어서 220px을 넘칠 경우를 대비한 안전장치 */
+    overflow: hidden;
+    text-overflow: ellipsis; 
+    white-space: nowrap;
+
     background-color: var(--bg-panel);
     padding: 20px;
     border-radius: 12px;
