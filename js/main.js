@@ -476,6 +476,15 @@ class AppController {
         // 🚀 테마 토글 버튼 이벤트
         document.getElementById('btn-theme-toggle')?.addEventListener('click', () => this.toggleTheme());
     }
+    
+    // 🚀 테마 초기화 로직
+    initTheme() {
+        const savedTheme = localStorage.getItem('tileclear_theme') || 'dark';
+        if (savedTheme === 'light') {
+            document.body.classList.add('light-mode');
+            document.getElementById('btn-theme-toggle').innerText = '☀️';
+        }
+    }
 
     // 🚀 테마 토글 로직
     toggleTheme() {
