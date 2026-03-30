@@ -276,13 +276,33 @@ class LobbyUI {
     renderLeaderboard(players, myId) {
         const sorted = [...players].sort((a, b) => (b.score || 0) - (a.score || 0));
         this.leaderboard.innerHTML = '<strong>🏆 실시간 순위</strong>';
+
         sorted.forEach((p, i) => {
-            const row         = document.createElement('div');
-            const isMe        = p.id === myId;
+            const row = document.createElement('div');
+            row.className = 'leaderboard-row'; // 🚀 [구조] CSS 제어를 위한 클래스 추가
+
+            const isMe = p.id === myId;
             const displayName = isMe ? `${p.nickname || p.id} (나)` : (p.nickname || p.id);
-            row.innerText = `${i + 1}. ${displayName} (${p.score || 0})`;
-            if (isMe) { row.style.color = 'var(--highlight)'; row.style.fontWeight = 'bold'; }
+
+            // 🚀 왼쪽: 등수와 닉네임
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'player-name';
+            nameSpan.innerText = `${i + 1}. ${displayName}`;
+
+            // 🚀 오른쪽: 점수
+            const scoreSpan = document.createElement('span');
+            scoreSpan.className = 'player-score';
+            scoreSpan.innerText = p.score || 0;
+
+            row.appendChild(nameSpan);
+            row.appendChild(scoreSpan);
+
+            if (isMe) {
+                row.style.color = 'var(--highlight)';
+                row.style.fontWeight = 'bold';
+            }
             if (p.isLeaving) row.style.textDecoration = 'line-through';
+            
             this.leaderboard.appendChild(row);
         });
     }
@@ -922,7 +942,7 @@ class AppController {
         if (this.roomManager.isHost && this.roomManager.currentRoomCode) {
             this.network.unregisterRoomFromDB(this.roomManager.currentRoomCode);
         }
-        
+
         this.ui.clearInput();
         this.ui.switchScreen('screen-lobby');
         await this.network.disconnect();

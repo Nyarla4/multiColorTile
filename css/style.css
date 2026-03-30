@@ -210,6 +210,31 @@ ul.list-box li {
     font-weight: bold;
 }
 
+/* 🚀 랭킹판 각 줄을 가로(Flex)로 배치하여 양끝으로 찢습니다 */
+.leaderboard-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+}
+
+/* 🚀 닉네임 영역: 남는 공간을 다 차지하되, 넘치면 '...' 처리 */
+.leaderboard-row .player-name {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: left;
+}
+
+/* 🚀 점수 영역: 찌그러지지 않고 고정폭 숫자처럼 작동하도록 설정 */
+.leaderboard-row .player-score {
+    flex-shrink: 0; /* 절대 줄어들지 않음 */
+    font-variant-numeric: tabular-nums; /* 숫자 너비가 고정되어 점수가 바뀔 때 안 흔들림 */
+    text-align: right;
+}
+
 /* 플레이 구역 (우측) */
 .play-area {
     display: flex;
