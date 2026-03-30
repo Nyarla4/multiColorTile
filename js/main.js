@@ -53,17 +53,17 @@ class LobbyUI {
         this.inputRoomCode = document.getElementById('input-room-code');
 
         // 대기실
-        this.roomTitle        = document.getElementById('room-title');
-        this.btnCopyLink      = document.getElementById('btn-copy-link');
-        this.toggleForceStart = document.getElementById('toggle-force-start');
-        this.roomStatus       = document.getElementById('room-status');
-        this.playerList       = document.getElementById('player-list');
-        this.btnReady         = document.getElementById('btn-ready');
-        this.btnStart         = document.getElementById('btn-start');
-        this.inputNickname    = document.getElementById('input-nickname');
-        this.nicknameStatus   = document.getElementById('nickname-status');
-        this.selectTheme      = document.getElementById('select-theme');
+        this.roomTitle          = document.getElementById('room-title');
+        this.btnCopyLink        = document.getElementById('btn-copy-link');
+        this.toggleForceStart   = document.getElementById('toggle-force-start');
+        this.roomStatus         = document.getElementById('room-status');
+        this.playerList         = document.getElementById('player-list');
         this.playerCountDisplay = document.getElementById('player-count-display');
+        this.btnReady           = document.getElementById('btn-ready');
+        this.btnStart           = document.getElementById('btn-start');
+        this.inputNickname      = document.getElementById('input-nickname');
+        this.nicknameStatus     = document.getElementById('nickname-status');
+        this.selectTheme        = document.getElementById('select-theme');
 
         // 게임
         this.uiTime      = document.getElementById('ui-time');
@@ -95,13 +95,6 @@ class LobbyUI {
         this.btnThemeToggle = document.getElementById('btn-theme-toggle');
 
         this.isEmojiMode = false;
-    }
-
-    // 인원수 텍스트만 업데이트하는 전용 메서드 추가
-    updatePlayerCountUI(count) {
-        if (this.playerCountDisplay) {
-            this.playerCountDisplay.innerText = `현재 ${count}명`;
-        }
     }
 
     // [흐름] 다크/라이트 테마 초기화 — localStorage 저장값 복원
@@ -182,8 +175,14 @@ class LobbyUI {
     }
 
     // [흐름] 로비 입력값
-    getInputValue() { return this.inputRoomCode.value.trim().toUpperCase(); }
-    clearInput()    { this.inputRoomCode.value = ''; }
+    getInputValue()       { return this.inputRoomCode.value.trim().toUpperCase(); }
+    setInputValue(value)  { this.inputRoomCode.value = value; } // 빠른 입장 등 외부에서 코드 주입 시 사용
+    clearInput()          { this.inputRoomCode.value = ''; }
+
+    // [흐름] 인원수 표시 갱신
+    updatePlayerCountUI(count) {
+        if (this.playerCountDisplay) this.playerCountDisplay.innerText = `현재 ${count}명`;
+    }
 
     // [흐름] 접속자 목록 렌더링
     renderPlayers(players, myId, isHost, onResetCallback, onKickCallback) {
@@ -287,17 +286,15 @@ class LobbyUI {
 
         sorted.forEach((p, i) => {
             const row = document.createElement('div');
-            row.className = 'leaderboard-row'; // 🚀 [구조] CSS 제어를 위한 클래스 추가
+            row.className = 'leaderboard-row';
 
-            const isMe = p.id === myId;
+            const isMe        = p.id === myId;
             const displayName = isMe ? `${p.nickname || p.id} (나)` : (p.nickname || p.id);
 
-            // 🚀 왼쪽: 등수와 닉네임
             const nameSpan = document.createElement('span');
             nameSpan.className = 'player-name';
             nameSpan.innerText = `${i + 1}. ${displayName}`;
 
-            // 🚀 오른쪽: 점수
             const scoreSpan = document.createElement('span');
             scoreSpan.className = 'player-score';
             scoreSpan.innerText = p.score || 0;
@@ -305,10 +302,7 @@ class LobbyUI {
             row.appendChild(nameSpan);
             row.appendChild(scoreSpan);
 
-            if (isMe) {
-                row.style.color = 'var(--highlight)';
-                row.style.fontWeight = 'bold';
-            }
+            if (isMe) { row.style.color = 'var(--highlight)'; row.style.fontWeight = 'bold'; }
             if (p.isLeaving) row.style.textDecoration = 'line-through';
 
             this.leaderboard.appendChild(row);
@@ -495,8 +489,7 @@ class AppController {
         document.getElementById('btn-start')        .addEventListener('click',   () => this.handleGameStart());
         document.getElementById('btn-save-nickname').addEventListener('click',   () => this.handleSaveNickname());
         document.getElementById('input-nickname')   .addEventListener('keydown', (e) => { if (e.key === 'Enter') this.handleSaveNickname(); });
-        // 🚀 [추가] 랜덤 입장 버튼 이벤트 연결
-        document.getElementById('btn-quick-join')?.addEventListener('click', () => this.handleQuickJoin());
+        document.getElementById('btn-quick-join')  ?.addEventListener('click',   () => this.handleQuickJoin());
 
         this.ui.bindBoardClick((index) => this.handleCellClick(index));
         this.ui.bindToggleEvents();
@@ -526,17 +519,17 @@ class AppController {
         });
     }
 
-    // 🚀 [추가] 랜덤 입장 흐름
+    // [흐름] 빠른 입장 — DB에서 무작위 방 코드를 가져와 접속
     async handleQuickJoin() {
         const roomCode = await this.network.getRandomRoomFromDB();
-        
+
         if (!roomCode) {
             alert('현재 대기 중인 방이 없습니다. 직접 방을 만들어보세요!');
             return;
         }
-        
-        // 찾은 방 코드를 입력창에 넣고, 접속 흐름을 그대로 태웁니다.
-        this.ui.inputRoomCode.value = roomCode;
+
+        // UI를 통해 입력창에 코드를 주입하고, 기존 접속 흐름을 그대로 재사용
+        this.ui.setInputValue(roomCode);
         await this.handleJoinRoom();
     }
 
@@ -594,9 +587,7 @@ class AppController {
                 (targetId) => this.handleForceResetNickname(targetId),
                 (targetId) => this.handleKickPlayer(targetId)
             );
-            // 🚀 데이터(흐름)에서 인원수를 가져와 화면(구조)에 반영
-            const currentCount = this.roomManager.players.length;
-            this.ui.updatePlayerCountUI(currentCount);
+            this.ui.updatePlayerCountUI(this.roomManager.players.length);
             const host = this.roomManager.players.find(p => p.isHost);
             if (host) this.ui.updateForceStartUI(!!host.isForceStartOn);
         }
@@ -623,12 +614,25 @@ class AppController {
         this.ui.switchScreen('screen-room');
     }
 
+    // [내부] 방장 자격으로 방 개설 공통 로직 (방 생성 / 모달 "방 생성" 공유)
+    async _createRoomAsHost(code) {
+        await this.network.connectToRoom(code, {
+            id:       this.roomManager.myId,
+            nickname: this.roomManager.myNickname,
+            isHost:   true,
+        });
+        this.roomManager.setRoomState(code, true);
+        this.roomManager.addPlayer(this.roomManager.myId, true);
+        await this.network.registerRoomToDB(code); // 빠른 입장 목록에 등록
+        this._enterRoom(code, true);
+    }
+
     // [흐름] URL 쿼리스트링으로 자동 방 접속
     async checkUrlAndAutoJoin() {
         const params   = new URLSearchParams(window.location.search);
         const roomCode = params.get('room');
         if (roomCode && roomCode.length === 4) {
-            this.ui.inputRoomCode.value = roomCode.toUpperCase();
+            this.ui.setInputValue(roomCode.toUpperCase());
             await this.handleJoinRoom();
             window.history.replaceState({}, document.title, window.location.pathname);
         }
@@ -648,18 +652,7 @@ class AppController {
     async handleCreateRoom() {
         const newCode = this.roomManager.generateRoomCode();
         try {
-            await this.network.connectToRoom(newCode, {
-                id:       this.roomManager.myId,
-                nickname: this.roomManager.myNickname,
-                isHost:   true,
-            });
-            this.roomManager.setRoomState(newCode, true);
-            this.roomManager.addPlayer(this.roomManager.myId, true);
-
-            // 🚀 DB에 내 방 코드를 올림 (모집 시작)
-            await this.network.registerRoomToDB(newCode);
-
-            this._enterRoom(newCode, true);
+            await this._createRoomAsHost(newCode);
         } catch {
             alert('방 생성에 실패했습니다. 다시 시도해주세요.');
         }
@@ -687,14 +680,7 @@ class AppController {
                 this.ui.showRoomNotFoundModal(
                     async () => {
                         try {
-                            await this.network.connectToRoom(code, {
-                                id:       this.roomManager.myId,
-                                nickname: this.roomManager.myNickname,
-                                isHost:   true,
-                            });
-                            this.roomManager.setRoomState(code, true);
-                            this.roomManager.addPlayer(this.roomManager.myId, true);
-                            this._enterRoom(code, true);
+                            await this._createRoomAsHost(code); // DB 등록 포함한 공통 로직 재사용
                         } catch {
                             alert('방 생성에 실패했습니다. 다시 시도해주세요.');
                         }
@@ -759,7 +745,7 @@ class AppController {
 
     // [내부] 실제 게임 시작 신호 전파 및 로컬 실행
     _doStartGame() {
-        // 🚀 모집이 끝났으므로 DB에서 방 코드를 내림
+        // 모집이 끝났으므로 DB에서 방 코드를 내림
         if (this.roomManager.isHost) {
             this.network.unregisterRoomFromDB(this.roomManager.currentRoomCode);
         }
@@ -949,7 +935,6 @@ class AppController {
 
     // [흐름] 방 퇴장 — 화면 전환 우선, 통신은 백그라운드 처리
     async handleLeaveRoom() {
-        // 🚀 방장이라면 DB에 올려둔 방 코드를 회수함
         if (this.roomManager.isHost && this.roomManager.currentRoomCode) {
             this.network.unregisterRoomFromDB(this.roomManager.currentRoomCode);
         }
