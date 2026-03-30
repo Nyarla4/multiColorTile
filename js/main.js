@@ -62,7 +62,6 @@ class LobbyUI {
         this.btnStart         = document.getElementById('btn-start');
         this.inputNickname    = document.getElementById('input-nickname');
         this.nicknameStatus   = document.getElementById('nickname-status');
-        this.themeContainer   = document.getElementById('theme-selector-container');
         this.selectTheme      = document.getElementById('select-theme');
 
         // 게임
@@ -91,7 +90,29 @@ class LobbyUI {
         this.btnVersion        = document.getElementById('btn-version');
         this.btnChangelogClose = document.getElementById('modal-btn-close-changelog');
 
+        // 테마 토글 버튼
+        this.btnThemeToggle = document.getElementById('btn-theme-toggle');
+
         this.isEmojiMode = false;
+    }
+
+    // [흐름] 다크/라이트 테마 초기화 — localStorage 저장값 복원
+    initTheme() {
+        const savedTheme = localStorage.getItem('tileclear_theme') || 'dark';
+        this._applyTheme(savedTheme === 'light');
+    }
+
+    // [흐름] 다크/라이트 테마 전환
+    toggleTheme() {
+        const isLight = document.body.classList.toggle('light-mode');
+        localStorage.setItem('tileclear_theme', isLight ? 'light' : 'dark');
+        this._applyTheme(isLight);
+    }
+
+    // [내부] 테마 적용 (아이콘 갱신 포함)
+    _applyTheme(isLight) {
+        document.body.classList.toggle('light-mode', isLight);
+        if (this.btnThemeToggle) this.btnThemeToggle.innerText = isLight ? '☀️' : '🌙';
     }
 
     // [흐름] 테마 목록을 드롭다운에 초기 생성
@@ -99,7 +120,7 @@ class LobbyUI {
         this.selectTheme.innerHTML = '';
         for (const [key, palette] of Object.entries(GameConfig.palettes)) {
             const option = document.createElement('option');
-            option.value    = key;
+            option.value     = key;
             option.innerText = palette.name;
             this.selectTheme.appendChild(option);
         }
@@ -178,8 +199,8 @@ class LobbyUI {
             const statusSpan = document.createElement('span');
             statusSpan.style.fontWeight = 'bold';
             if (p.isHost) {
-                statusSpan.innerText    = '👑 방장';
-                statusSpan.style.color  = 'var(--highlight)';
+                statusSpan.innerText   = '👑 방장';
+                statusSpan.style.color = 'var(--highlight)';
             } else {
                 statusSpan.innerText   = p.isReady ? '✅ Ready' : '⏳ 대기중';
                 statusSpan.style.color = p.isReady ? 'var(--accent)' : 'var(--text-muted)';
@@ -218,9 +239,9 @@ class LobbyUI {
 
     // [흐름] 방장/게스트 버튼 분기 및 강제시작 토글 활성화 여부
     setupButtons(isHost) {
-        this.btnReady.style.display         = isHost ? 'none'  : 'block';
-        this.btnStart.style.display         = isHost ? 'block' : 'none';
-        this.toggleForceStart.disabled      = !isHost;
+        this.btnReady.style.display    = isHost ? 'none'  : 'block';
+        this.btnStart.style.display    = isHost ? 'block' : 'none';
+        this.toggleForceStart.disabled = !isHost;
     }
 
     // [흐름] 강제 시작 토글 UI 동기화 (방장의 Presence 상태를 읽어 반영)
@@ -322,19 +343,15 @@ class LobbyUI {
             const isMe        = p.id === myId;
             const displayName = isMe ? `${p.nickname || p.id} (나)` : (p.nickname || p.id);
 
-            // 🚀 [구조 분리] inline style 직접 조작을 제거하고 클래스 부여로 대체
             card.className = 'result-card';
             if (i === 0) card.classList.add('first-place');
             if (isMe)    card.classList.add('me-card');
 
             card.innerText = `${i + 1}등: ${displayName} (${p.score || 0}점) ${i === 0 ? '👑' : ''}`;
-            
+
             card.addEventListener('click', () => {
-                // 🚀 [흐름 분리] style.borderColor = 'transparent' 제거!
-                // 단순히 모든 카드의 선택 상태를 해제하고 현재 카드만 선택 상태로 만듦
                 Array.from(this.resultLeaderboard.children)
                     .forEach(c => c.classList.remove('selected'));
-                
                 card.classList.add('selected');
                 onSelectCallback(p);
             });
@@ -385,7 +402,6 @@ class LobbyUI {
     // [내부] 셀 스타일 공통 적용
     // tileIndex: 숫자(0~9) = 타일 있음, null = 빈 칸
     _applyCell(cell, tileIndex) {
-        // dataset.color: 숫자 string("0"~"9") = 타일, "" = 빈 칸
         cell.dataset.color = tileIndex !== null ? String(tileIndex) : '';
 
         if (tileIndex !== null) {
@@ -407,7 +423,7 @@ class LobbyUI {
         const palette = GameConfig.getActivePalette();
         Array.from(board.children).forEach(cell => {
             const raw = cell.dataset.color;
-            if (raw === '' || raw === undefined) return; // 빈 칸은 갱신 불필요
+            if (raw === '' || raw === undefined) return;
             const tileIndex = parseInt(raw, 10);
             cell.innerText = this.isEmojiMode ? palette.emojis[tileIndex] : '';
         });
@@ -435,9 +451,8 @@ class AppController {
         this.selectedPlayerData = null;
         this.replayStep         = 0;
 
+        this.ui.initTheme();
         this.ui.initThemeSelector();
-        // 🚀 테마 초기 설정 불러오기
-        this.initTheme();
         this.bindEvents();
         this.setupNetworkCallbacks();
         this.checkUrlAndAutoJoin();
@@ -463,6 +478,7 @@ class AppController {
         this.ui.btnVersion        ?.addEventListener('click', () => this.ui.showChangelog());
         this.ui.btnChangelogClose ?.addEventListener('click', () => this.ui.hideChangelog());
         this.ui.btnCopyLink       ?.addEventListener('click', () => this.handleCopyLink());
+        this.ui.btnThemeToggle    ?.addEventListener('click', () => this.ui.toggleTheme());
 
         // 테마 변경 시 활성 팔레트 교체 후 보드 전체 리렌더
         this.ui.selectTheme?.addEventListener('change', (e) => {
@@ -478,29 +494,6 @@ class AppController {
         window.addEventListener('beforeunload', () => {
             if (this.roomManager.currentRoomCode) this.network.disconnect();
         });
-
-        // 🚀 테마 토글 버튼 이벤트
-        document.getElementById('btn-theme-toggle')?.addEventListener('click', () => this.toggleTheme());
-    }
-
-    // 🚀 테마 초기화 로직
-    initTheme() {
-        const savedTheme = localStorage.getItem('tileclear_theme') || 'dark';
-        if (savedTheme === 'light') {
-            document.body.classList.add('light-mode');
-            document.getElementById('btn-theme-toggle').innerText = '☀️';
-        }
-    }
-
-    // 🚀 테마 토글 로직
-    toggleTheme() {
-        const isLight = document.body.classList.toggle('light-mode');
-        const theme   = isLight ? 'light' : 'dark';
-        
-        localStorage.setItem('tileclear_theme', theme);
-        document.getElementById('btn-theme-toggle').innerText = isLight ? '☀️' : '🌙';
-        
-        // (디테일) 테마가 바뀌면 보드의 빈 칸 격자 느낌도 즉시 갱신됨
     }
 
     // [흐름] 방장이 강제 시작 토글을 변경했을 때 Presence에 반영
@@ -557,7 +550,6 @@ class AppController {
                 (targetId) => this.handleForceResetNickname(targetId),
                 (targetId) => this.handleKickPlayer(targetId)
             );
-            // 방장의 강제 시작 설정을 모든 사람의 UI에 반영
             const host = this.roomManager.players.find(p => p.isHost);
             if (host) this.ui.updateForceStartUI(!!host.isForceStartOn);
         }
@@ -703,14 +695,10 @@ class AppController {
         const guests       = this.roomManager.players.filter(p => !p.isHost);
 
         // 게스트가 없으면(방장 혼자) 항상 시작 가능
-        if (guests.length === 0) {
-            this._doStartGame();
-            return;
-        }
+        if (guests.length === 0) { this._doStartGame(); return; }
 
         // 게스트가 있을 때: 강제 시작 또는 전원 준비 필요
-        const allReady = guests.every(p => p.isReady);
-        if (!isForceStart && !allReady) {
+        if (!isForceStart && !guests.every(p => p.isReady)) {
             alert('모든 참가자가 준비를 완료해야 시작할 수 있습니다.\n또는 [강제 시작] 설정을 켜주세요.');
             return;
         }
@@ -798,7 +786,6 @@ class AppController {
         this.board      = null;
         this.scoreTimer = null;
 
-        // 결과창 렌더링
         this.ui.renderResultBoard(this.roomManager.players, this.roomManager.myId, (selectedPlayer) => {
             this.selectedPlayerData = selectedPlayer;
             this.pauseReplay();
@@ -886,7 +873,6 @@ class AppController {
     handleBackToRoom() {
         this.pauseReplay();
 
-        // isLeaving: false로 복귀 알림 — 다른 사람 화면에 재등장
         this.network.updateMyState({
             id:        this.roomManager.myId,
             nickname:  this.roomManager.myNickname,
