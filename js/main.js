@@ -430,6 +430,8 @@ class AppController {
         this.replayStep         = 0;
 
         this.ui.initThemeSelector();
+        // 🚀 테마 초기 설정 불러오기
+        this.initTheme();
         this.bindEvents();
         this.setupNetworkCallbacks();
         this.checkUrlAndAutoJoin();
@@ -470,6 +472,20 @@ class AppController {
         window.addEventListener('beforeunload', () => {
             if (this.roomManager.currentRoomCode) this.network.disconnect();
         });
+
+        // 🚀 테마 토글 버튼 이벤트
+        document.getElementById('btn-theme-toggle')?.addEventListener('click', () => this.toggleTheme());
+    }
+
+    // 🚀 테마 토글 로직
+    toggleTheme() {
+        const isLight = document.body.classList.toggle('light-mode');
+        const theme   = isLight ? 'light' : 'dark';
+        
+        localStorage.setItem('tileclear_theme', theme);
+        document.getElementById('btn-theme-toggle').innerText = isLight ? '☀️' : '🌙';
+        
+        // (디테일) 테마가 바뀌면 보드의 빈 칸 격자 느낌도 즉시 갱신됨
     }
 
     // [흐름] 방장이 강제 시작 토글을 변경했을 때 Presence에 반영
