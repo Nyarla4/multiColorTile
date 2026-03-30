@@ -63,6 +63,7 @@ class LobbyUI {
         this.inputNickname    = document.getElementById('input-nickname');
         this.nicknameStatus   = document.getElementById('nickname-status');
         this.selectTheme      = document.getElementById('select-theme');
+        this.playerCountDisplay = document.getElementById('player-count-display');
 
         // 게임
         this.uiTime      = document.getElementById('ui-time');
@@ -94,6 +95,13 @@ class LobbyUI {
         this.btnThemeToggle = document.getElementById('btn-theme-toggle');
 
         this.isEmojiMode = false;
+    }
+
+    // 인원수 텍스트만 업데이트하는 전용 메서드 추가
+    updatePlayerCountUI(count) {
+        if (this.playerCountDisplay) {
+            this.playerCountDisplay.innerText = `현재 ${count}명`;
+        }
     }
 
     // [흐름] 다크/라이트 테마 초기화 — localStorage 저장값 복원
@@ -302,7 +310,7 @@ class LobbyUI {
                 row.style.fontWeight = 'bold';
             }
             if (p.isLeaving) row.style.textDecoration = 'line-through';
-            
+
             this.leaderboard.appendChild(row);
         });
     }
@@ -586,6 +594,9 @@ class AppController {
                 (targetId) => this.handleForceResetNickname(targetId),
                 (targetId) => this.handleKickPlayer(targetId)
             );
+            // 🚀 데이터(흐름)에서 인원수를 가져와 화면(구조)에 반영
+            const currentCount = this.roomManager.players.length;
+            this.ui.updatePlayerCountUI(currentCount);
             const host = this.roomManager.players.find(p => p.isHost);
             if (host) this.ui.updateForceStartUI(!!host.isForceStartOn);
         }
