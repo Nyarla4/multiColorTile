@@ -597,7 +597,8 @@ class AppController {
     // [내부] 게임 중/대기 중 상태에 따라 적절한 뷰 갱신
     _refreshPlayerView() {
         if (this.isGameRunning) {
-            this.ui.renderLeaderboard(this.roomManager.players, this.roomManager.myId);
+            const activePlayers = this.roomManager.players.filter(p => p.isPlaying);
+            this.ui.renderLeaderboard(activePlayers, this.roomManager.myId);
         } else {
             this.ui.renderPlayers(
                 this.roomManager.players,
@@ -787,7 +788,7 @@ class AppController {
         this.scoreTimer = new ScoreTimer(GameConfig);
 
         const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
-        if (me) this.network.updateMyState({ ...me, score: 0, isReady: false, updatedAt: Date.now() });
+        if (me) this.network.updateMyState({ ...me, score: 0, isReady: false, isPlaying: true, updatedAt: Date.now() });
 
         this.ui.updateStats(this.scoreTimer.time, this.scoreTimer.score);
         this.ui.initBoard(this.board.grid);
@@ -849,7 +850,9 @@ class AppController {
         this.board      = null;
         this.scoreTimer = null;
 
-        this.ui.renderResultBoard(this.roomManager.players, this.roomManager.myId, (selectedPlayer) => {
+        const activePlayers = this.roomManager.players.filter(p => p.isPlaying);
+
+        this.ui.renderResultBoard(activePlayers, this.roomManager.myId, (selectedPlayer) => {
             this.selectedPlayerData = selectedPlayer;
             this.pauseReplay();
             const historyCount = selectedPlayer.history?.length ?? 0;
@@ -942,6 +945,7 @@ class AppController {
             isHost:    this.roomManager.isHost,
             isReady:   false,
             isLeaving: false,
+            isPlaying: false, // 🚀 [추가] 대기실로 복귀했으므로 다시 입장 가능하도록 해제
             isForceStartOn: this.isForceStartPersistent, // 🏠 설정 유지
             score:     0,
             history:   [],
