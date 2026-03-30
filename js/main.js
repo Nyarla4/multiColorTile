@@ -322,14 +322,20 @@ class LobbyUI {
             const isMe        = p.id === myId;
             const displayName = isMe ? `${p.nickname || p.id} (나)` : (p.nickname || p.id);
 
-            card.className = i === 0 ? 'result-card first-place' : 'result-card';
-            card.innerText = `${i + 1}등: ${displayName} (${p.score || 0}점) ${i === 0 ? '👑' : ''}`;
-            if (isMe && i !== 0) card.style.borderLeft = '3px solid var(--highlight)';
+            // 🚀 [구조 분리] inline style 직접 조작을 제거하고 클래스 부여로 대체
+            card.className = 'result-card';
+            if (i === 0) card.classList.add('first-place');
+            if (isMe)    card.classList.add('me-card');
 
+            card.innerText = `${i + 1}등: ${displayName} (${p.score || 0}점) ${i === 0 ? '👑' : ''}`;
+            
             card.addEventListener('click', () => {
+                // 🚀 [흐름 분리] style.borderColor = 'transparent' 제거!
+                // 단순히 모든 카드의 선택 상태를 해제하고 현재 카드만 선택 상태로 만듦
                 Array.from(this.resultLeaderboard.children)
-                    .forEach(c => c.style.borderColor = 'transparent');
-                card.style.borderColor = 'var(--primary)';
+                    .forEach(c => c.classList.remove('selected'));
+                
+                card.classList.add('selected');
                 onSelectCallback(p);
             });
             this.resultLeaderboard.appendChild(card);
@@ -476,7 +482,7 @@ class AppController {
         // 🚀 테마 토글 버튼 이벤트
         document.getElementById('btn-theme-toggle')?.addEventListener('click', () => this.toggleTheme());
     }
-    
+
     // 🚀 테마 초기화 로직
     initTheme() {
         const savedTheme = localStorage.getItem('tileclear_theme') || 'dark';

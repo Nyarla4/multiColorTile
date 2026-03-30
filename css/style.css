@@ -310,6 +310,21 @@ ul.list-box li {
 
 .result-card:hover         { transform: scale(1.02); border-color: var(--primary); }
 .result-card.first-place   { background-color: rgba(246, 182, 85, 0.1); border: 1px solid var(--highlight); color: var(--highlight); font-weight: bold; }
+/* 🚀 본인 표시 (왼쪽 노란색 굵은 줄) */
+.result-card.me-card {
+    border-left: 3px solid var(--highlight);
+}
+
+/* 🚀 클릭되어 선택된 상태 */
+.result-card.selected {
+    border-color: var(--primary);
+    transform: scale(1.02);
+}
+
+/* 🚀 본인 카드가 선택되었을 때의 예외 처리 (왼쪽 노란줄은 그대로 유지) */
+.result-card.me-card.selected {
+    border-left-color: var(--highlight);
+}
 
 /* 리플레이 미니 보드 */
 #replay-board {
