@@ -176,9 +176,17 @@ class LobbyUI {
     // [흐름] 대기실 헤더 갱신
     updateRoomView(roomCode, isHost) {
         this.roomTitle.innerText  = roomCode;
-        this.roomStatus.innerText = isHost
-            ? '당신은 방장입니다. 다른 플레이어를 기다리는 중...'
-            : '방에 접속했습니다. 시작을 기다리는 중...';
+    }
+
+    // 🚀 [구조 추가] 방 상태 메시지만 전문적으로 갱신하는 헬퍼 메서드
+    updateRoomStatusText(isHost, isAnyPlaying) {
+        if (isHost) {
+            this.roomStatus.innerText = '당신은 방장입니다. 다른 플레이어를 기다리는 중...';
+        } else if (isAnyPlaying) {
+            this.roomStatus.innerText = '현재 게임이 진행 중입니다. 끝날 때까지 대기해주세요 ☕';
+        } else {
+            this.roomStatus.innerText = '방에 접속했습니다. 시작을 기다리는 중...';
+        }
     }
 
     // [흐름] 로비 입력값
@@ -215,6 +223,9 @@ class LobbyUI {
             if (p.isHost) {
                 statusSpan.innerText   = '👑 방장';
                 statusSpan.style.color = 'var(--highlight)';
+            } else if (p.isPlaying) {
+                statusSpan.innerText   = '🎮 플레이중';
+                statusSpan.style.color = 'var(--primary)';
             } else {
                 statusSpan.innerText   = p.isReady ? '✅ Ready' : '⏳ 대기중';
                 statusSpan.style.color = p.isReady ? 'var(--accent)' : 'var(--text-muted)';
@@ -628,7 +639,7 @@ class AppController {
     // [내부] 방 진입 후 공통 UI 세팅
     _enterRoom(code, isHost) {
         this.ui.setupButtons(isHost);
-        this.ui.updateRoomView(code, isHost);
+        this.ui.updateRoomView(code);
         this.ui.initNicknameInput(this.roomManager.myNickname);
         this._refreshPlayerView();
         this.ui.switchScreen('screen-room');
@@ -953,7 +964,7 @@ class AppController {
         });
 
         this.ui.switchScreen('screen-room');
-        this.ui.updateRoomView(this.roomManager.currentRoomCode, this.roomManager.isHost);
+        this.ui.updateRoomView(this.roomManager.currentRoomCode);
         this.ui.setupButtons(this.roomManager.isHost);
         this.ui.updateReadyButtonUI(false);
         this._refreshPlayerView();
