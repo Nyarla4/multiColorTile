@@ -621,6 +621,10 @@ class AppController {
             this.ui.updatePlayerCountUI(this.roomManager.players.length);
             const host = this.roomManager.players.find(p => p.isHost);
             if (host) this.ui.updateForceStartUI(!!host.isForceStartOn);
+
+            // 🚀 [추가] 누군가 들어오거나 상태가 바뀔 때마다 상태 메시지 UI를 갱신합니다.
+            const isAnyPlaying = this.roomManager.players.some(p => p.isPlaying);
+            this.ui.updateRoomStatusText(this.roomManager.isHost, isAnyPlaying);
         }
     }
 
