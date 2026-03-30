@@ -536,7 +536,15 @@ class AppController {
 
         // 창 닫기/새로고침 시 나가기 처리
         window.addEventListener('beforeunload', () => {
-            if (this.roomManager.currentRoomCode) this.network.disconnect();
+            if (this.roomManager.currentRoomCode) {
+                // 🚀 흐름 추가: 방장이라면 브라우저가 꺼지기 직전에 DB에서 방 코드를 지웁니다.
+                if (this.roomManager.isHost) {
+                    this.network.unregisterRoomFromDB(this.roomManager.currentRoomCode);
+                }
+                
+                // 기존의 통신망 연결 해제
+                this.network.disconnect();
+            }
         });
 
         // 🚀 하는 방법 모달 이벤트 연결
