@@ -216,4 +216,33 @@ export class NetworkClient {
         this.channel    = null;
         this.myLastData = null;
     }
+
+    // 🚀 [추가] 방장이 방을 만들 때 DB에 방 코드 등록
+    async registerRoomToDB(roomCode) {
+        try {
+            await supabase.from('active_rooms').insert([{ room_code: roomCode }]);
+        } catch (e) { console.error('DB 등록 실패:', e); }
+    }
+
+    // 🚀 [추가] 게임이 시작되거나 방장이 나갈 때 DB에서 방 코드 삭제
+    async unregisterRoomFromDB(roomCode) {
+        try {
+            await supabase.from('active_rooms').delete().eq('room_code', roomCode);
+        } catch (e) { console.error('DB 삭제 실패:', e); }
+    }
+
+    // 🚀 [추가] DB에서 무작위 방 코드 하나 가져오기
+    async getRandomRoomFromDB() {
+        try {
+            // 최대 50개의 활성 방을 가져와서 그 중 하나를 랜덤으로 뽑습니다.
+            const { data, error } = await supabase.from('active_rooms').select('room_code').limit(50);
+            if (error || !data || data.length === 0) return null;
+            
+            const randomIndex = Math.floor(Math.random() * data.length);
+            return data[randomIndex].room_code;
+        } catch (e) { 
+            console.error('랜덤 방 찾기 실패:', e); 
+            return null; 
+        }
+    }
 }

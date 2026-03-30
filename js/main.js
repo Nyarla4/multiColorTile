@@ -444,6 +444,8 @@ class AppController {
         document.getElementById('btn-start')        .addEventListener('click',   () => this.handleGameStart());
         document.getElementById('btn-save-nickname').addEventListener('click',   () => this.handleSaveNickname());
         document.getElementById('input-nickname')   .addEventListener('keydown', (e) => { if (e.key === 'Enter') this.handleSaveNickname(); });
+        // 🚀 [추가] 랜덤 입장 버튼 이벤트 연결
+        document.getElementById('btn-quick-join')?.addEventListener('click', () => this.handleQuickJoin());
 
         this.ui.bindBoardClick((index) => this.handleCellClick(index));
         this.ui.bindToggleEvents();
@@ -470,6 +472,20 @@ class AppController {
         window.addEventListener('beforeunload', () => {
             if (this.roomManager.currentRoomCode) this.network.disconnect();
         });
+    }
+
+    // 🚀 [추가] 랜덤 입장 흐름
+    async handleQuickJoin() {
+        const roomCode = await this.network.getRandomRoomFromDB();
+        
+        if (!roomCode) {
+            alert('현재 대기 중인 방이 없습니다. 직접 방을 만들어보세요!');
+            return;
+        }
+        
+        // 찾은 방 코드를 입력창에 넣고, 접속 흐름을 그대로 태웁니다.
+        this.ui.inputRoomCode.value = roomCode;
+        await this.handleJoinRoom();
     }
 
     // [흐름] 방장이 강제 시작 토글을 변경했을 때 Presence에 반영
@@ -585,6 +601,10 @@ class AppController {
             });
             this.roomManager.setRoomState(newCode, true);
             this.roomManager.addPlayer(this.roomManager.myId, true);
+
+            // 🚀 DB에 내 방 코드를 올림 (모집 시작)
+            await this.network.registerRoomToDB(newCode);
+
             this._enterRoom(newCode, true);
         } catch {
             alert('방 생성에 실패했습니다. 다시 시도해주세요.');
@@ -689,6 +709,11 @@ class AppController {
 
     // [내부] 실제 게임 시작 신호 전파 및 로컬 실행
     _doStartGame() {
+        // 🚀 모집이 끝났으므로 DB에서 방 코드를 내림
+        if (this.roomManager.isHost) {
+            this.network.unregisterRoomFromDB(this.roomManager.currentRoomCode);
+        }
+
         const seed = generateSeed(GameConfig);
         this.network.broadcastGameStart(seed);
         this.startGameProcess(seed);
@@ -876,6 +901,11 @@ class AppController {
 
     // [흐름] 방 퇴장 — 화면 전환 우선, 통신은 백그라운드 처리
     async handleLeaveRoom() {
+        // 🚀 방장이라면 DB에 올려둔 방 코드를 회수함
+        if (this.roomManager.isHost && this.roomManager.currentRoomCode) {
+            this.network.unregisterRoomFromDB(this.roomManager.currentRoomCode);
+        }
+        
         this.ui.clearInput();
         this.ui.switchScreen('screen-lobby');
         await this.network.disconnect();
