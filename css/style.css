@@ -661,3 +661,36 @@ body.light-mode .version-badge:hover {
     background-color: var(--primary); /* 마우스를 올리면 프라이머리 색상으로 */
     color: #ffffff; /* 글자는 흰색으로 명확하게 */
 }
+
+/* 🚀 하는 방법 버튼 스타일 */
+.how-to-badge {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    padding: 10px 18px;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-muted);
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+}
+
+.how-to-badge:hover {
+    background-color: var(--primary);
+    color: #fff;
+    border-color: var(--highlight);
+    transform: translateY(-2px);
+}
+
+/* 라이트 모드 대응 */
+body.light-mode .how-to-badge {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: var(--text-muted);
+}
+body.light-mode .how-to-badge:hover {
+    background-color: var(--primary);
+    color: #fff;
+}

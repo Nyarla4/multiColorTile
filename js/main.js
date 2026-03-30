@@ -51,6 +51,9 @@ class LobbyUI {
 
         // 로비
         this.inputRoomCode = document.getElementById('input-room-code');
+        this.btnHowTo      = document.getElementById('btn-how-to');      // 🚀 추가
+        this.modalHowTo    = document.getElementById('modal-how-to');    // 🚀 추가
+        this.btnHowToClose = document.getElementById('modal-btn-close-how-to'); // 🚀 추가
 
         // 대기실
         this.roomTitle          = document.getElementById('room-title');
@@ -96,6 +99,10 @@ class LobbyUI {
 
         this.isEmojiMode = false;
     }
+    
+    // 🚀 모달 표시/숨김 헬퍼
+    showHowTo() { this.modalHowTo.style.display = 'flex'; }
+    hideHowTo() { this.modalHowTo.style.display = 'none'; }
 
     // [흐름] 다크/라이트 테마 초기화 — localStorage 저장값 복원
     initTheme() {
@@ -517,6 +524,10 @@ class AppController {
         window.addEventListener('beforeunload', () => {
             if (this.roomManager.currentRoomCode) this.network.disconnect();
         });
+
+        // 🚀 하는 방법 모달 이벤트 연결
+        this.ui.btnHowTo?.addEventListener('click', () => this.ui.showHowTo());
+        this.ui.btnHowToClose?.addEventListener('click', () => this.ui.hideHowTo());
     }
 
     // [흐름] 빠른 입장 — DB에서 무작위 방 코드를 가져와 접속

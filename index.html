@@ -30,10 +30,11 @@
                 빠른 입장 (랜덤 매칭)
             </button>
         </div>
+        <div id="btn-how-to" class="how-to-badge">하는 방법</div>
     </div>
 
     <!-- 버전 뱃지 -->
-    <div id="btn-version" class="version-badge">v1.11.3</div>
+    <div id="btn-version" class="version-badge">v1.12.3</div>
 
     <!-- 업데이트 로그 모달 -->
     <div id="modal-changelog" class="modal-overlay" style="display: none;">
@@ -86,6 +87,10 @@
                     <li>빠른 시작 추가</li>
                     <li>우측 플레이 창 고정</li>
                 </ul>
+                <h4>v1.12.3</h4>
+                <ul>
+                    <li>하는 방법 추가</li>
+                </ul>
                 <h4>-버전 올리기 쪼끔 그럼-</h4>
                 <ul>
                     <li>1.9.3 ~ 1.10.3: 쿠로카 퍼플, 라떼 블루 좀 더 구분되도록 시도</li>
@@ -108,6 +113,29 @@
             <div class="modal-buttons">
                 <button id="modal-btn-create" class="btn-secondary">방 생성</button>
                 <button id="modal-btn-cancel">나가기</button>
+            </div>
+        </div>
+    </div>
+
+<div id="modal-how-to" class="modal-overlay" style="display: none;">
+        <div class="modal-box" style="max-width: 450px; text-align: left;">
+            <h2 style="margin-bottom: 20px; text-align: center;">🎮 게임 방법</h2>
+            <div class="how-to-content" style="line-height: 1.7; font-size: 0.95rem;">
+                <p><strong>1. 빈 공간 클릭</strong></p>
+                <ul style="margin-bottom: 10px;">
+                    <li>상, 하, 좌, 우 직선 방향으로 가장 가까운 타일들 중</li>
+                </ul>
+                <p><strong>2. 같은 색 타일 파괴</strong></p>
+                <ul style="margin-bottom: 10px;">
+                    <li><strong>같은 색상이 2개 이상</strong> 있다면 점수를 얻고 타일 제거</li>
+                </ul>
+                <p><strong>3. 감점</strong></p>
+                <ul style="margin-bottom: 10px;">
+                    <li>연결되는 타일이 없는데 클릭하면 <strong>1점이 감점</strong> (최소 0점)</li>
+                </ul>
+            </div>
+            <div class="modal-buttons" style="margin-top: 20px;">
+                <button id="modal-btn-close-how-to" class="btn-primary" style="width: 100%;">알겠어요!</button>
             </div>
         </div>
     </div>
