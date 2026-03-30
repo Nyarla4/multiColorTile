@@ -599,3 +599,14 @@ input:disabled + .slider {
     font-size: 20px;
     border: 2px solid var(--primary);
 }
+
+/* 🚀 라이트 모드일 때의 버전 뱃지 스타일 덮어쓰기 */
+body.light-mode .version-badge {
+    background-color: rgba(255, 255, 255, 0.8); /* 밝고 반투명한 흰색 배경 */
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);  /* 살짝 떠 보이게 그림자 추가 */
+}
+
+body.light-mode .version-badge:hover {
+    background-color: var(--primary); /* 마우스를 올리면 프라이머리 색상으로 */
+    color: #ffffff; /* 글자는 흰색으로 명확하게 */
+}
