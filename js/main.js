@@ -480,6 +480,9 @@ class AppController {
         this.selectedPlayerData = null;
         this.replayStep         = 0;
 
+        // 🚀 [추가] 저장된 강제 시작 설정 불러오기 (기본값: false)
+        this.isForceStartPersistent = localStorage.getItem('tileclear_force_start') === 'true';
+
         this.ui.initTheme();
         this.ui.initThemeSelector();
         this.bindEvents();
@@ -547,6 +550,11 @@ class AppController {
     // [흐름] 방장이 강제 시작 토글을 변경했을 때 Presence에 반영
     handleForceStartToggle(isOn) {
         if (!this.roomManager.isHost) return;
+
+        // 🚀 [추가] 브라우저에 설정 저장
+        this.isForceStartPersistent = isOn;
+        localStorage.setItem('tileclear_force_start', isOn);
+
         const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
         if (me) {
             this.network.updateMyState({ ...me, isForceStartOn: isOn, updatedAt: Date.now() });
@@ -631,6 +639,8 @@ class AppController {
             id:       this.roomManager.myId,
             nickname: this.roomManager.myNickname,
             isHost:   true,
+            // 🚀 [추가] 저장된 설정을 초기 상태에 포함
+            isForceStartOn: this.isForceStartPersistent
         });
         this.roomManager.setRoomState(code, true);
         this.roomManager.addPlayer(this.roomManager.myId, true);
@@ -932,6 +942,7 @@ class AppController {
             isHost:    this.roomManager.isHost,
             isReady:   false,
             isLeaving: false,
+            isForceStartOn: this.isForceStartPersistent, // 🏠 설정 유지
             score:     0,
             history:   [],
             updatedAt: Date.now(),
