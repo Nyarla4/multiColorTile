@@ -245,4 +245,19 @@ export class NetworkClient {
             return null; 
         }
     }
+
+    // 🚀 [추가] 브라우저 종료/새로고침 시 방 코드를 끝까지 책임지고 지우는 메서드
+    unregisterRoomFromDBOnUnload(roomCode) {
+        // Supabase SDK가 아닌 브라우저 내장 fetch를 사용합니다.
+        const url = `${SUPABASE_URL}/rest/v1/active_rooms?room_code=eq.${roomCode}`;
+        
+        fetch(url, {
+            method: 'DELETE',
+            headers: {
+                'apikey': SUPABASE_KEY,
+                'Authorization': `Bearer ${SUPABASE_KEY}`
+            },
+            keepalive: true // 🚀 핵심: 탭이 닫혀도 브라우저가 백그라운드에서 이 요청을 끝까지 전송함
+        }).catch(e => console.error('강제 종료 DB 삭제 실패:', e));
+    }
 }
