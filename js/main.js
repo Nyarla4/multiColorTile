@@ -504,24 +504,28 @@ class LobbyUI {
 }
 
 
+// [구조] 중앙 애플리케이션 컨트롤러
 class AppController {
     constructor() {
-        this.ui = new LobbyUI();
+        this.ui          = new LobbyUI();
         this.roomManager = new RoomManager();
-        this.network = new NetworkClient();
-        this.soundFX = new SoundFX();
+        this.network     = new NetworkClient();
+        this.soundFX     = new SoundFX();
 
-        this.board = null;
-        this.scoreTimer = null;
+        // 게임 상태
+        this.board         = null;
+        this.scoreTimer    = null;
         this.isGameRunning = false;
-        this.currentScreen = 'lobby';
+        this.currentScreen = 'lobby'; // 🚀 [추가] 현재 화면 상태 추적
 
-        this.myActionHistory = [];
-        this.currentSeed = null;
-        this.replayInterval = null;
+        // 리플레이 상태
+        this.myActionHistory    = [];
+        this.currentSeed        = null;
+        this.replayInterval     = null;
         this.selectedPlayerData = null;
-        this.replayStep = 0;
+        this.replayStep         = 0;
 
+        // 🚀 [추가] 저장된 강제 시작 설정 불러오기 (기본값: false)
         this.isForceStartPersistent = localStorage.getItem('tileclear_force_start') === 'true';
 
         this.ui.initTheme();
@@ -531,46 +535,52 @@ class AppController {
         this.checkUrlAndAutoJoin();
     }
 
+    // [흐름] 이벤트 바인딩 — 앱 초기화 시 1회 실행
     bindEvents() {
-        document.getElementById('btn-create-room').addEventListener('click', () => this.handleCreateRoom());
-        document.getElementById('btn-join-room').addEventListener('click', () => this.handleJoinRoom());
-        document.getElementById('btn-leave-room').addEventListener('click', () => this.handleLeaveRoom());
-        document.getElementById('btn-ready').addEventListener('click', () => this.handleReadyToggle());
-        document.getElementById('btn-start').addEventListener('click', () => this.handleGameStart());
-        
-        // 닉네임 입력 이벤트
-        const saveNickBtn = document.getElementById('btn-save-nickname');
-        saveNickBtn.addEventListener('click', () => this.handleSaveNickname());
-        document.getElementById('input-nickname').addEventListener('keydown', (e) => { if (e.key === 'Enter') this.handleSaveNickname(); });
-        
-        document.getElementById('btn-quick-join')?.addEventListener('click', () => this.handleQuickJoin());
+        document.getElementById('btn-create-room')  .addEventListener('click',   () => this.handleCreateRoom());
+        document.getElementById('btn-join-room')    .addEventListener('click',   () => this.handleJoinRoom());
+        document.getElementById('btn-leave-room')   .addEventListener('click',   () => this.handleLeaveRoom());
+        document.getElementById('btn-ready')        .addEventListener('click',   () => this.handleReadyToggle());
+        document.getElementById('btn-start')        .addEventListener('click',   () => this.handleGameStart());
+        document.getElementById('btn-save-nickname').addEventListener('click',   () => this.handleSaveNickname());
+        document.getElementById('input-nickname')   .addEventListener('keydown', (e) => { if (e.key === 'Enter') this.handleSaveNickname(); });
+        document.getElementById('btn-quick-join')  ?.addEventListener('click',   () => this.handleQuickJoin());
 
         this.ui.bindBoardClick((index) => this.handleCellClick(index));
         this.ui.bindToggleEvents();
-        
-        this.ui.btnBackToRoom.addEventListener('click', () => this.handleBackToRoom());
+        this.ui.btnBackToRoom      .addEventListener('click', () => this.handleBackToRoom());
         this.ui.btnLeaveFromResult?.addEventListener('click', () => this.handleLeaveRoom());
-        this.ui.btnPlayReplay.addEventListener('click', () => this.replayInterval ? this.pauseReplay() : this.startReplaySimulation());
-        this.ui.btnVersion?.addEventListener('click', () => this.ui.showChangelog());
-        this.ui.btnChangelogClose?.addEventListener('click', () => this.ui.hideChangelog());
-        this.ui.btnCopyLink?.addEventListener('click', () => this.handleCopyLink());
-        this.ui.btnThemeToggle?.addEventListener('click', () => this.ui.toggleTheme());
+        this.ui.btnPlayReplay      .addEventListener('click', () => {
+            this.replayInterval ? this.pauseReplay() : this.startReplaySimulation();
+        });
+        this.ui.btnVersion        ?.addEventListener('click', () => this.ui.showChangelog());
+        this.ui.btnChangelogClose ?.addEventListener('click', () => this.ui.hideChangelog());
+        this.ui.btnCopyLink       ?.addEventListener('click', () => this.handleCopyLink());
+        this.ui.btnThemeToggle    ?.addEventListener('click', () => this.ui.toggleTheme());
 
+        // 테마 변경 시 활성 팔레트 교체 후 보드 전체 리렌더
         this.ui.selectTheme?.addEventListener('change', (e) => {
             GameConfig.activePaletteId = e.target.value;
             if (this.board) this.ui.initBoard(this.board.grid);
             if (this.selectedPlayerData) this.goToReplayStep(this.replayStep);
         });
 
+        // 강제 시작 토글
         this.ui.toggleForceStart?.addEventListener('change', (e) => this.handleForceStartToggle(e.target.checked));
 
+        // 창 닫기/새로고침 시 나가기 처리
         window.addEventListener('beforeunload', () => {
             if (this.roomManager.currentRoomCode) {
-                if (this.roomManager.isHost) this.network.unregisterRoomFromDBOnUnload(this.roomManager.currentRoomCode);
+                if (this.roomManager.isHost) {
+                    // 비동기(await) SDK 메서드 대신 keepalive가 적용된 동기식 메서드 호출
+                    this.network.unregisterRoomFromDBOnUnload(this.roomManager.currentRoomCode);
+                }
+                // 통신망 연결 해제 (이것도 끊길 수 있지만 채널은 서버가 알아서 정리해 줌)
                 this.network.disconnect();
             }
         });
 
+        // 🚀 하는 방법 모달 이벤트 연결
         this.ui.btnHowTo?.addEventListener('click', () => this.ui.showHowTo());
         this.ui.btnHowToClose?.addEventListener('click', () => this.ui.hideHowTo());
     }
@@ -605,27 +615,27 @@ class AppController {
 
     // [흐름] 네트워크 콜백 설정
     setupNetworkCallbacks() {
-        this.network.on('syncState', (playersData) => {
+        this.network.onSyncState = (playersData) => {
             this.roomManager.syncPlayers(playersData);
             this._refreshPlayerView();
-        });
+        };
 
-        this.network.on('gameStart', (seed) => this.startGameProcess(seed));
+        this.network.onGameStart = (seed) => this.startGameProcess(seed);
 
-        this.network.on('forceNicknameReset', (targetId) => {
+        this.network.onForceNicknameReset = (targetId) => {
             if (targetId !== this.roomManager.myId) return;
             this.roomManager.setNickname(this.roomManager.myId);
             this.ui.initNicknameInput(this.roomManager.myId);
             const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
             if (me) this.network.updateMyState({ ...me, nickname: this.roomManager.myId, updatedAt: Date.now() });
-        });
+        };
 
-        this.network.on('playerLeft', (leftId) => {
+        this.network.onPlayerLeft = (leftId) => {
             this.roomManager.markPlayerAsLeft(leftId);
             this._refreshPlayerView();
-        });
+        };
 
-        this.network.on('playerKicked', (targetId) => {
+        this.network.onPlayerKicked = (targetId) => {
             if (targetId === this.roomManager.myId) {
                 alert('방장에 의해 추방되었습니다.');
                 this.handleLeaveRoom();
@@ -633,7 +643,7 @@ class AppController {
                 this.roomManager.markPlayerAsLeft(targetId);
                 this._refreshPlayerView();
             }
-        });
+        };
     }
 
     // [내부] 게임 중/대기 중 상태에 따라 적절한 뷰 갱신
