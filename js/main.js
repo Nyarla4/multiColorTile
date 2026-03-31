@@ -415,6 +415,8 @@ class LobbyUI {
             const displayName = isMe ? `${p.nickname || p.id} (나)` : (p.nickname || p.id);
 
             card.className = 'result-card';
+            card.dataset.id = p.id;
+
             if (i === 0) card.classList.add('first-place');
             if (isMe)    card.classList.add('me-card');
 
@@ -514,6 +516,7 @@ class AppController {
         this.board         = null;
         this.scoreTimer    = null;
         this.isGameRunning = false;
+        this.currentScreen = 'lobby'; // 🚀 [추가] 현재 화면 상태 추적
 
         // 리플레이 상태
         this.myActionHistory    = [];
@@ -645,10 +648,37 @@ class AppController {
 
     // [내부] 게임 중/대기 중 상태에 따라 적절한 뷰 갱신
     _refreshPlayerView() {
-        if (this.isGameRunning) {
+        if (this.currentScreen === 'game') {
             const activePlayers = this.roomManager.players.filter(p => p.isPlaying);
             this.ui.renderLeaderboard(activePlayers, this.roomManager.myId);
-        } else {
+            
+        } else if (this.currentScreen === 'result') {
+            // 🚀 [추가] 누군가의 최종 점수나 리플레이(history)가 지연 도착했을 때 결과창을 갱신합니다.
+            const activePlayers = this.roomManager.players.filter(p => p.isPlaying);
+            
+            // 리렌더링 시 기존에 클릭해서 보고 있던 사람을 기억해 둡니다. (없으면 나)
+            const prevSelectedId = this.selectedPlayerData?.id || this.roomManager.myId;
+
+            this.ui.renderResultBoard(activePlayers, this.roomManager.myId, (selectedPlayer) => {
+                this.selectedPlayerData = selectedPlayer;
+                this.pauseReplay();
+                const historyCount = selectedPlayer.history?.length ?? 0;
+                this.ui.setupReplayUI(selectedPlayer, this.currentSeed);
+                this.ui.setupReplaySlider(historyCount, (step) => {
+                    this.pauseReplay();
+                    this.goToReplayStep(step);
+                });
+                this.goToReplayStep(historyCount);
+            });
+
+            // 🚀 새 택배를 뜯어서 화면을 다시 그렸으니, 아까 보던 사람의 카드를 자동으로 다시 클릭해 줍니다.
+            const playerToSelect = activePlayers.find(p => p.id === prevSelectedId);
+            if (playerToSelect) {
+                const card = Array.from(this.ui.resultLeaderboard.children).find(c => c.dataset.id === playerToSelect.id);
+                if (card) card.click(); // 강제 클릭 이벤트 발생
+            }
+
+        }else {
             this.ui.renderPlayers(
                 this.roomManager.players,
                 this.roomManager.myId,
@@ -680,6 +710,7 @@ class AppController {
 
     // [내부] 방 진입 후 공통 UI 세팅
     _enterRoom(code, isHost) {
+        this.currentScreen = 'room'; // 🚀 [추가]
         this.ui.setupButtons(isHost);
         this.ui.updateRoomView(code);
         this.ui.initNicknameInput(this.roomManager.myNickname);
@@ -832,6 +863,7 @@ class AppController {
 
     // [흐름] 게임 초기화 및 화면 전환
     startGameProcess(seed) {
+        this.currentScreen = 'game'; // 🚀 [추가]
         this.isGameRunning   = true;
         this.currentSeed     = seed;
         this.myActionHistory = [];
@@ -898,43 +930,26 @@ class AppController {
     endGame() {
         const finalScore = this.scoreTimer?.score ?? 0;
         this.isGameRunning = false;
+        this.currentScreen = 'result'; // 🚀 [추가] 상태 변경
         this.scoreTimer?.stop();
         this.board      = null;
         this.scoreTimer = null;
 
-        const activePlayers = this.roomManager.players.filter(p => p.isPlaying);
-
-        this.ui.renderResultBoard(activePlayers, this.roomManager.myId, (selectedPlayer) => {
-            this.selectedPlayerData = selectedPlayer;
-            this.pauseReplay();
-            const historyCount = selectedPlayer.history?.length ?? 0;
-            this.ui.setupReplayUI(selectedPlayer, this.currentSeed);
-            this.ui.setupReplaySlider(historyCount, (step) => {
-                this.pauseReplay();
-                this.goToReplayStep(step);
-            });
-            this.goToReplayStep(historyCount);
-        });
-
-        // 🚀 [수정] 방장, 게스트 상관없이 최종 점수와 history를 한 번에 전송합니다.
-        const myFinalState = {
+        // 🚀 수정: 문제의 원인이었던 "게스트 투명인간(isLeaving)" 분기를 완전히 삭제했습니다!
+        // 누구나 동일하게 최종 점수와 history를 서버로 쏘며, isPlaying은 true로 유지합니다.
+        this.network.updateMyState({
             id:        this.roomManager.myId,
             nickname:  this.roomManager.myNickname,
             isHost:    this.roomManager.isHost,
             isReady:   false,
+            isPlaying: true, // 🚀 결과창에 떠 있어야 하므로 true 유지
             score:     finalScore,
-            history:   this.myActionHistory, // 🚀 여기서 딱 한 번만 전송!
+            history:   this.myActionHistory, // 여기서 전송한 택배가 늦게 도착함
             updatedAt: Date.now(),
-        };
-
-        // 게스트만 투명인간(isLeaving) 처리 유지
-        if (!this.roomManager.isHost) {
-            myFinalState.isLeaving = true;
-        }
-
-        this.network.updateMyState(myFinalState);
+        });
 
         this.ui.switchScreen('screen-result');
+        this._refreshPlayerView(); // 🚀 UI 그리기를 동기화 메서드로 위임
     }
 
     // [흐름] 지정 시점(step)의 보드 상태를 계산 후 즉시 렌더링
@@ -993,6 +1008,7 @@ class AppController {
 
     // [흐름] 결과 화면 → 대기실 복귀
     handleBackToRoom() {
+        this.currentScreen = 'room'; // 🚀 [추가]
         this.pauseReplay();
 
         this.network.updateMyState({
