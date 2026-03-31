@@ -299,32 +299,63 @@ class LobbyUI {
 
     // [흐름] 실시간 순위표 렌더링
     renderLeaderboard(players, myId) {
+        // 1. 헤더가 없으면 처음 한 번만 생성
+        if (!this.leaderboard.querySelector('.leaderboard-header')) {
+            this.leaderboard.innerHTML = '<strong class="leaderboard-header" style="display:block; margin-bottom:10px;">🏆 실시간 순위</strong>';
+        }
+
         const sorted = [...players].sort((a, b) => (b.score || 0) - (a.score || 0));
-        this.leaderboard.innerHTML = '<strong>🏆 실시간 순위</strong>';
+
+        // 2. 현재 화면에 있는 순위표 줄(row)들을 수집해서 Map으로 관리
+        const existingRows = Array.from(this.leaderboard.querySelectorAll('.leaderboard-row'));
+        const rowMap = new Map();
+        existingRows.forEach(row => rowMap.set(row.dataset.id, row));
 
         sorted.forEach((p, i) => {
-            const row = document.createElement('div');
-            row.className = 'leaderboard-row';
-
-            const isMe        = p.id === myId;
+            const isMe = p.id === myId;
             const displayName = isMe ? `${p.nickname || p.id} (나)` : (p.nickname || p.id);
+            const rankText = `${i + 1}. ${displayName}`;
+            const scoreText = p.score || 0;
 
-            const nameSpan = document.createElement('span');
-            nameSpan.className = 'player-name';
-            nameSpan.innerText = `${i + 1}. ${displayName}`;
+            let row = rowMap.get(p.id);
 
-            const scoreSpan = document.createElement('span');
-            scoreSpan.className = 'player-score';
-            scoreSpan.innerText = p.score || 0;
+            // 3. 해당 유저의 줄이 없다면 새로 생성 (구조)
+            if (!row) {
+                row = document.createElement('div');
+                row.className = 'leaderboard-row';
+                row.dataset.id = p.id; 
 
-            row.appendChild(nameSpan);
-            row.appendChild(scoreSpan);
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'player-name';
+                
+                const scoreSpan = document.createElement('span');
+                scoreSpan.className = 'player-score';
+                
+                row.appendChild(nameSpan);
+                row.appendChild(scoreSpan);
+            } else {
+                rowMap.delete(p.id);
+            }
 
-            if (isMe) { row.style.color = 'var(--highlight)'; row.style.fontWeight = 'bold'; }
-            if (p.isLeaving) row.style.textDecoration = 'line-through';
+            // 4. 텍스트 값만 갱신 (흐름)
+            row.querySelector('.player-name').innerText = rankText;
+            row.querySelector('.player-score').innerText = scoreText;
 
+            // 순위 변동 시 자동으로 위아래 위치 재정렬
             this.leaderboard.appendChild(row);
+
+            if (isMe) { 
+                row.style.color = 'var(--highlight)'; 
+                row.style.fontWeight = 'bold'; 
+            } else {
+                row.style.color = ''; 
+                row.style.fontWeight = ''; 
+            }
+            row.style.textDecoration = p.isLeaving ? 'line-through' : 'none';
         });
+
+        // 5. 방을 나간 유저 등 불필요해진 태그들만 삭제
+        rowMap.forEach(row => row.remove());
     }
 
     // [흐름] 타이머·점수 갱신
@@ -858,7 +889,6 @@ class AppController {
             this.network.updateMyState({
                 ...me,
                 score:     this.scoreTimer.score,
-                history:   this.myActionHistory,
                 updatedAt: Date.now(),
             });
         }
@@ -886,19 +916,23 @@ class AppController {
             this.goToReplayStep(historyCount);
         });
 
-        // 게스트는 결과창을 보는 동안 다른 사람 화면에서 투명인간 처리
+        // 🚀 [수정] 방장, 게스트 상관없이 최종 점수와 history를 한 번에 전송합니다.
+        const myFinalState = {
+            id:        this.roomManager.myId,
+            nickname:  this.roomManager.myNickname,
+            isHost:    this.roomManager.isHost,
+            isReady:   false,
+            score:     finalScore,
+            history:   this.myActionHistory, // 🚀 여기서 딱 한 번만 전송!
+            updatedAt: Date.now(),
+        };
+
+        // 게스트만 투명인간(isLeaving) 처리 유지
         if (!this.roomManager.isHost) {
-            this.network.updateMyState({
-                id:        this.roomManager.myId,
-                nickname:  this.roomManager.myNickname,
-                isHost:    false,
-                isReady:   false,
-                isLeaving: true,
-                score:     finalScore,
-                history:   this.myActionHistory,
-                updatedAt: Date.now(),
-            });
+            myFinalState.isLeaving = true;
         }
+
+        this.network.updateMyState(myFinalState);
 
         this.ui.switchScreen('screen-result');
     }
