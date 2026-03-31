@@ -1,45 +1,36 @@
 <!DOCTYPE html>
 <html lang="ko">
-
 <head>
     <meta charset="UTF-8">
     <title>Color Tile - Multiplayer</title>
     <link rel="stylesheet" href="./css/style.css">
     <link rel="icon" type="image/png" href="./icon.png">
 </head>
-
 <body>
-    <div id="btn-theme-toggle" class="theme-toggle-btn" title="테마 변경">
-        🌙
-    </div>
+    <div id="btn-theme-toggle" class="theme-toggle-btn" title="테마 변경">🌙</div>
 
-    <!-- 로비 화면 -->
     <div id="screen-lobby" class="screen active">
         <div class="panel">
             <h1>컬러 타일 멀티</h1>
-            <p class="text-muted">
-                서버 딜레이 어케 줄이지 :Q<br>;ㅁ;
-            </p>
+            <p class="text-muted">서버 딜레이 어케 줄이지 :Q<br>;ㅁ;<br>정리중...(기능 잘 안될 수 있음)</p>
             <br>
-            <button id="btn-create-room" class="btn-secondary" style="width: 100%; padding: 15px;">방 생성</button>
-            <div class="form-group" style="margin-top: 30px;">
+            <button id="btn-create-room" class="btn-secondary full-width padding-lg">방 생성</button>
+            <div class="form-group margin-top-lg">
                 <input type="text" id="input-room-code" placeholder="방 코드" maxlength="4" autocomplete="off">
                 <button id="btn-join-room">방 접속</button>
             </div>
-            <button id="btn-quick-join" class="btn-primary" style="width: 100%; margin-top: 10px; padding: 15px;">
+            <button id="btn-quick-join" class="btn-primary full-width margin-top-sm padding-lg">
                 빠른 입장 (랜덤 매칭)
             </button>
         </div>
         <div id="btn-how-to" class="how-to-badge">하는 방법</div>
     </div>
 
-    <!-- 버전 뱃지 -->
     <div id="btn-version" class="version-badge">v1.13.3</div>
 
-    <!-- 업데이트 로그 모달 -->
     <div id="modal-changelog" class="modal-overlay" style="display: none;">
-        <div class="modal-box" style="max-width: 400px; text-align: left;">
-            <h2 style="margin-bottom: 20px; text-align: center;">업데이트 로그</h2>
+        <div class="modal-box left-align" style="max-width: 400px;">
+            <h2 class="center-text">업데이트 로그</h2>
             <div class="changelog-content">
                 <h4>v1.0.0</h4>
                 <ul><li>컬러 타일 멀티플레이어 릴리즈!</li></ul>
@@ -106,13 +97,12 @@
                     <li>1.13.3 ~ 1.14.3: 난입시 랭킹에 안나오도록 수정</li>
                 </ul>
             </div>
-            <div class="modal-buttons" style="margin-top: 20px;">
-                <button id="modal-btn-close-changelog" class="btn-primary" style="width: 100%;">닫기</button>
+            <div class="modal-buttons margin-top-md">
+                <button id="modal-btn-close-changelog" class="btn-primary full-width">닫기</button>
             </div>
         </div>
     </div>
 
-    <!-- 방 없음 알림 모달 -->
     <div id="modal-room-not-found" class="modal-overlay" style="display: none;">
         <div class="modal-box">
             <p class="modal-message">존재하지 않는 방 코드입니다.</p>
@@ -123,51 +113,42 @@
         </div>
     </div>
 
-<div id="modal-how-to" class="modal-overlay" style="display: none;">
-        <div class="modal-box" style="max-width: 450px; text-align: left;">
-            <h2 style="margin-bottom: 20px; text-align: center;">🎮 게임 방법</h2>
-            <div class="how-to-content" style="line-height: 1.7; font-size: 0.95rem;">
+    <div id="modal-how-to" class="modal-overlay" style="display: none;">
+        <div class="modal-box left-align" style="max-width: 450px;">
+            <h2 class="center-text margin-bottom-md">🎮 게임 방법</h2>
+            <div class="how-to-content line-height-lg text-sm">
                 <p><strong>1. 빈 공간 클릭</strong></p>
-                <ul style="margin-bottom: 10px;">
-                    <li>상, 하, 좌, 우 직선 방향으로 가장 가까운 타일들 중</li>
-                </ul>
+                <ul class="margin-bottom-sm"><li>상, 하, 좌, 우 직선 방향으로 가장 가까운 타일들 중</li></ul>
                 <p><strong>2. 같은 색 타일 파괴</strong></p>
-                <ul style="margin-bottom: 10px;">
-                    <li><strong>같은 색상이 2개 이상</strong> 있다면 점수를 얻고 타일 제거</li>
-                </ul>
+                <ul class="margin-bottom-sm"><li><strong>같은 색상이 2개 이상</strong> 있다면 점수를 얻고 타일 제거</li></ul>
                 <p><strong>3. 감점</strong></p>
-                <ul style="margin-bottom: 10px;">
-                    <li>연결되는 타일이 없는데 클릭하면 <strong>1점이 감점</strong> (최소 0점)</li>
-                </ul>
+                <ul class="margin-bottom-sm"><li>연결되는 타일이 없는데 클릭하면 <strong>1점이 감점</strong> (최소 0점)</li></ul>
             </div>
-            <div class="modal-buttons" style="margin-top: 20px;">
-                <button id="modal-btn-close-how-to" class="btn-primary" style="width: 100%;">알겠어요!</button>
+            <div class="modal-buttons margin-top-md">
+                <button id="modal-btn-close-how-to" class="btn-primary full-width">알겠어요!</button>
             </div>
         </div>
     </div>
 
-    <!-- 대기실 화면 -->
     <div id="screen-room" class="screen">
         <div class="room-dashboard">
-            
             <div class="dashboard-header">
-                <div class="info-card" style="display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 10px;">
-                    <strong style="font-size: 1.1rem; color: var(--text-main);">⚙️ 방 설정</strong>
-                    <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-                        <span class="text-muted" style="font-size: 0.95rem; font-weight: bold;">강제 시작 (준비 무시)</span>
+                <div class="info-card flex-col-start gap-sm">
+                    <strong class="text-main font-lg">⚙️ 방 설정</strong>
+                    <div class="flex-between full-width">
+                        <span class="text-muted font-bold text-sm">강제 시작 (준비 무시)</span>
                         <label class="switch">
                             <input type="checkbox" id="toggle-force-start">
                             <span class="slider round"></span>
                         </label>
                     </div>
                 </div>
-                
-                <div class="info-card" style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
-                    <div style="display: flex; flex-direction: column; justify-content: center; text-align: left;">
-                        <span class="text-muted" style="font-size: 0.85rem; font-weight: bold; letter-spacing: 1px;">ROOM CODE</span>
-                        <h2 id="room-title" style="margin: 5px 0 0 0; font-size: 2.5rem; color: var(--highlight); letter-spacing: 5px;">----</h2>
+                <div class="info-card flex-between gap-sm">
+                    <div class="flex-col-start">
+                        <span class="text-muted font-bold text-xs letter-spacing-sm">ROOM CODE</span>
+                        <h2 id="room-title" class="room-title-text">----</h2>
                     </div>
-                    <button id="btn-copy-link" class="btn-secondary" style="padding: 12px 15px; font-size: 1rem; border-radius: 8px;">
+                    <button id="btn-copy-link" class="btn-secondary padding-md rounded-lg text-md">
                         🔗 링크 복사
                     </button>
                 </div>
@@ -176,108 +157,88 @@
             <div class="settings-section">
                 <div class="setting-item">
                     <label>👤 닉네임 설정</label>
-                    <div class="form-group" style="margin: 0; justify-content: flex-start;">
-                        <input type="text" id="input-nickname" maxlength="10" autocomplete="off" placeholder="닉네임 변경" style="flex: 1;">
-                        <button id="btn-save-nickname" class="btn-primary" style="white-space: nowrap;">저장</button>
+                    <div class="form-group flex-start no-margin">
+                        <input type="text" id="input-nickname" maxlength="10" autocomplete="off" placeholder="닉네임 변경" class="flex-grow">
+                        <button id="btn-save-nickname" class="btn-primary no-wrap">저장</button>
                     </div>
-                    <p id="nickname-status" class="text-muted" style="margin: 5px 0 0 0; min-height: 15px; font-size: 12px;"></p>
+                    <p id="nickname-status" class="text-muted status-text"></p>
                 </div>
-
                 <div class="setting-item" id="theme-selector-container">
                     <label>🎨 내 타일 테마 설정</label>
-                    <select id="select-theme" style="width: 100%; padding: 12px; border-radius: 6px; background-color: var(--bg-canvas); color: var(--text-main); border: 2px solid var(--bg-canvas); outline: none; cursor: pointer; font-size: 16px;">
-                        </select>
+                    <select id="select-theme" class="theme-select"></select>
                 </div>
             </div>
 
             <div class="player-section">
-                <h3 style="margin: 0 0 10px 5px; text-align: left;">
-                    접속자 목록
-                    <span id="player-count-display" style="color: var(--highlight); font-size: 1.1rem; margin-left: 5px;">(인수표시)</span>
+                <h3 class="left-align margin-bottom-sm">
+                    접속자 목록 <span id="player-count-display" class="highlight-text font-lg margin-left-xs">(인원표시)</span>
                 </h3>
                 <ul id="player-list" class="list-box wide-list"></ul>
             </div>
 
             <div class="bottom-action-bar">
-                <button id="btn-leave-room" style="background-color: transparent; color: var(--text-muted); border: 1px solid var(--text-muted);">나가기</button>
-                <div id="room-status" class="text-muted" style="font-weight: bold;">상태 메시지</div>
-                <div style="display: flex; gap: 10px;">
-                    <button id="btn-ready" class="btn-secondary" style="width: 180px; font-size: 1.1rem;">준비</button>
-                    <button id="btn-start" class="btn-secondary" style="display: none; width: 180px; font-size: 1.1rem;">게임 시작</button>
+                <button id="btn-leave-room" class="btn-outline">나가기</button>
+                <div id="room-status" class="text-muted font-bold">상태 메시지</div>
+                <div class="flex-gap-sm">
+                    <button id="btn-ready" class="btn-secondary btn-action-large">준비</button>
+                    <button id="btn-start" class="btn-secondary btn-action-large" style="display: none;">게임 시작</button>
                 </div>
             </div>
-
         </div>
     </div>
 
-    <!-- 게임 화면 -->
     <div id="screen-game" class="screen">
         <div class="game-layout">
-
             <div id="leaderboard" class="leaderboard-v"></div>
-
             <div class="play-area">
                 <div class="game-info-bar">
                     <div id="ui-time">Time: 120</div>
                     <div id="ui-score">Score: 0</div>
                 </div>
-
                 <div class="toggle-container">
                     <label>
                         <input type="checkbox" id="toggle-emoji">
                         <span>모양 표시</span>
                     </label>
                 </div>
-
                 <div id="game-board"></div>
             </div>
-
         </div>
     </div>
 
-    <!-- 결과 화면 -->
     <div id="screen-result" class="screen">
-        <h2 style="font-size: 2rem; color: var(--accent); margin-bottom: 30px;">최종 결과</h2>
-
+        <h2 class="result-title">최종 결과</h2>
         <div class="result-layout">
             <div class="result-col">
-                <h3 style="text-align: center;">🏆 순위표</h3>
-                <div id="result-leaderboard" style="display: flex; flex-direction: column; margin-top: 15px;"></div>
+                <h3 class="center-text">🏆 순위표</h3>
+                <div id="result-leaderboard" class="flex-col margin-top-sm"></div>
             </div>
-
-            <div class="result-col" style="display: flex; flex-direction: column; align-items: center;">
-                <h3 id="replay-title" style="color: var(--primary);">🔍 플레이어 선택</h3>
-
-                <div id="replay-content"
-                    style="display: none; flex-direction: column; align-items: center; width: 100%; margin-top: 15px;">
-                    <div class="game-info-bar" style="font-size: 1rem; margin-bottom: 0;">
+            <div class="result-col flex-col-center">
+                <h3 id="replay-title" class="primary-text">🔍 플레이어 선택</h3>
+                <div id="replay-content" class="replay-wrapper" style="display: none;">
+                    <div class="game-info-bar text-md no-margin-bottom">
                         <span id="replay-time">Time: -</span>
                         <span id="replay-score">Score: -</span>
                     </div>
-
-                    <div class="toggle-container" style="justify-content: center; margin-bottom: 15px;">
+                    <div class="toggle-container center-justify margin-bottom-sm">
                         <label>
                             <input type="checkbox" id="toggle-emoji-replay">
                             <span>모양 표시</span>
                         </label>
                     </div>
-
                     <div id="replay-board"></div>
-                    <input type="range" id="replay-slider" min="0" max="0" value="0"
-                        style="width: 100%; margin: 15px 0; cursor: pointer; accent-color: var(--highlight);">
-                    <button id="btn-play-replay" class="btn-secondary" style="margin-top: 10px;">▶ 재생 시작</button>
+                    <input type="range" id="replay-slider" min="0" max="0" value="0" class="replay-slider">
+                    <button id="btn-play-replay" class="btn-secondary margin-top-sm">▶ 재생 시작</button>
                 </div>
             </div>
         </div>
-
-        <div style="display: flex; gap: 15px; margin-top: 30px; width: 100%; max-width: 500px;">
-            <button id="btn-back-to-room" class="btn-primary" style="flex: 1;">돌아가기</button>
-            <button id="btn-leave-from-result" class="btn-danger" style="flex: 1;">나가기</button>
+        <div class="result-actions">
+            <button id="btn-back-to-room" class="btn-primary flex-grow">돌아가기</button>
+            <button id="btn-leave-from-result" class="btn-danger flex-grow">나가기</button>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module" src="./js/main.js"></script>
 </body>
-
 </html>

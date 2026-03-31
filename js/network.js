@@ -4,16 +4,14 @@ const SUPABASE_KEY = 'sb_publishable_2e33xf0hNMg3sP4xNTIiwQ_HGhFFu12';
 if (!window.supabase) throw new Error('[Network] Supabase SDK 로드 실패. CDN 연결 확인 필요.');
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-
-// [구조] 방·플레이어 상태 관리자
 export class RoomManager {
     constructor() {
         this.currentRoomCode = null;
-        this.isHost          = false;
-        this.myId            = 'P_' + crypto.randomUUID().slice(0, 8);
-        this.myNickname      = localStorage.getItem('tileclear_nickname') || this.myId;
-        this.players         = [];
-        this.leftPlayers     = new Set();
+        this.isHost = false;
+        this.myId = 'P_' + crypto.randomUUID().slice(0, 8);
+        this.myNickname = localStorage.getItem('tileclear_nickname') || this.myId;
+        this.players = [];
+        this.leftPlayers = new Set();
     }
 
     setNickname(name) {
@@ -22,29 +20,24 @@ export class RoomManager {
     }
 
     generateRoomCode() {
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        let code = '';
-        for (let i = 0; i < 4; i++) {
-            code += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        return code;
+        return Math.random().toString(36).substring(2, 6).toUpperCase(); // 난수 생성 로직 단순화
     }
 
     setRoomState(code, isHost) {
         this.currentRoomCode = code;
-        this.isHost          = isHost;
+        this.isHost = isHost;
     }
 
     addPlayer(id, isHost) {
-        if (!this.players.find(p => p.id === id)) {
+        if (!this.players.some(p => p.id === id)) {
             this.players.push({ id, nickname: this.myNickname, isHost, isReady: false });
         }
     }
 
     clearRoomState() {
         this.currentRoomCode = null;
-        this.isHost          = false;
-        this.players         = [];
+        this.isHost = false;
+        this.players = [];
         this.leftPlayers.clear();
         this.myId = 'P_' + crypto.randomUUID().slice(0, 8);
     }
@@ -59,86 +52,63 @@ export class RoomManager {
     }
 }
 
-
-// [구조] Supabase 채널 통신 전담
 export class NetworkClient {
     constructor() {
-        this.channel              = null;
-        this.myLastData           = null;
-        this.onSyncState          = null;
-        this.onGameStart          = null;
-        this.onForceNicknameReset = null;
-        this.onPlayerLeft         = null;
-        this.onPlayerKicked = null; // 🚀 [추가] 추방 알림 콜백
+        this.channel = null;
+        this.myLastData = null;
+        this.callbacks = {}; // 이벤트 콜백을 객체로 통합 관리
     }
 
-    // [흐름] 채널 접속 — Promise로 성공/실패를 명확히 반환
+    on(event, callback) {
+        this.callbacks[event] = callback;
+    }
+
+    trigger(event, payload) {
+        if (this.callbacks[event]) this.callbacks[event](payload);
+    }
+
     connectToRoom(roomCode, myData) {
         return new Promise((resolve, reject) => {
             this.myLastData = myData;
-
-            this.channel = supabase.channel('room_' + roomCode, {
+            this.channel = supabase.channel(`room_${roomCode}`, {
                 config: { presence: { key: myData.id } },
             });
 
             const syncCurrentState = () => {
-                const state          = this.channel.presenceState();
-                const currentPlayers = [];
-                for (const key in state) {
-                    const arr = state[key];
-                    if (arr.length > 0) {
-                        const latest = arr[arr.length - 1];
-                        if (!latest.isLeaving) currentPlayers.push(latest);
-                    }
-                }
-                if (this.onSyncState) this.onSyncState(currentPlayers);
+                const state = this.channel.presenceState();
+                const currentPlayers = Object.values(state)
+                    .map(arr => arr.length > 0 ? arr[arr.length - 1] : null)
+                    .filter(p => p && !p.isLeaving);
+                this.trigger('syncState', currentPlayers);
             };
 
-            this.channel.on('presence',  { event: 'sync'  }, syncCurrentState);
-            this.channel.on('presence',  { event: 'leave' }, syncCurrentState);
-            this.channel.on('broadcast', { event: 'game_start' }, (payload) => {
-                if (this.onGameStart) this.onGameStart(payload.payload.seed);
-            });
-            this.channel.on('broadcast', { event: 'force_reset_nickname' }, (payload) => {
-                if (this.onForceNicknameReset) this.onForceNicknameReset(payload.payload.targetId);
-            });
-            this.channel.on('broadcast', { event: 'player_left' }, (payload) => {
-                if (this.onPlayerLeft) this.onPlayerLeft(payload.payload.id);
-            });
-            // 🚀 [추가] 방장이 쏜 추방 방송 수신
-            this.channel.on('broadcast', { event: 'player_kicked' }, (payload) => {
-                if (this.onPlayerKicked) this.onPlayerKicked(payload.payload.targetId);
-            });
+            this.channel.on('presence', { event: 'sync' }, syncCurrentState);
+            this.channel.on('presence', { event: 'leave' }, syncCurrentState);
+            this.channel.on('broadcast', { event: 'game_start' }, (p) => this.trigger('gameStart', p.payload.seed));
+            this.channel.on('broadcast', { event: 'force_reset_nickname' }, (p) => this.trigger('forceNicknameReset', p.payload.targetId));
+            this.channel.on('broadcast', { event: 'player_left' }, (p) => this.trigger('playerLeft', p.payload.id));
+            this.channel.on('broadcast', { event: 'player_kicked' }, (p) => this.trigger('playerKicked', p.payload.targetId));
 
             this.channel.subscribe(async (status) => {
                 if (status !== 'SUBSCRIBED') return;
 
-                console.log(`[Network] ${roomCode} 채널 접속 완료`);
-
                 if (myData.isHost) {
                     await this.channel.track(this.myLastData);
-                    resolve(true);
-                    return;
+                    return resolve(true);
                 }
 
-                // 게스트: 방장 존재 확인 (최대 1.5초, 100ms 간격)
                 let attempts = 0;
-                const CHECK_INTERVAL = 100;
-                const MAX_ATTEMPTS   = 15;
-
                 const checkHostInterval = setInterval(async () => {
                     try {
                         attempts++;
-                        const state   = this.channel.presenceState();
-                        const hasHost = Object.values(state).some(arr =>
-                            arr.some(p => p.isHost && !p.isLeaving)
-                        );
+                        const state = this.channel.presenceState();
+                        const hasHost = Object.values(state).some(arr => arr.some(p => p.isHost && !p.isLeaving));
 
                         if (hasHost) {
                             clearInterval(checkHostInterval);
                             await this.channel.track(this.myLastData);
                             resolve(true);
-                        } else if (attempts >= MAX_ATTEMPTS) {
+                        } else if (attempts >= 15) {
                             clearInterval(checkHostInterval);
                             await this._cleanup();
                             reject(new Error('ROOM_NOT_FOUND'));
@@ -147,53 +117,26 @@ export class NetworkClient {
                         clearInterval(checkHostInterval);
                         reject(err);
                     }
-                }, CHECK_INTERVAL);
+                }, 100);
             });
         });
     }
 
-    // 🚀 [추가] 방장이 특정 대상을 추방하는 방송 전송
-    async broadcastKickPlayer(targetId) {
+    async _sendBroadcast(event, payload) {
         if (this.channel) {
-            await this.channel.send({
-                type:    'broadcast',
-                event:   'player_kicked',
-                payload: { targetId }
-            });
+            await this.channel.send({ type: 'broadcast', event, payload });
         }
     }
+
+    broadcastKickPlayer(targetId) { return this._sendBroadcast('player_kicked', { targetId }); }
+    broadcastGameStart(seed) { return this._sendBroadcast('game_start', { seed }); }
+    broadcastForceNicknameReset(targetId) { return this._sendBroadcast('force_reset_nickname', { targetId }); }
+    broadcastPlayerLeft(id) { return this._sendBroadcast('player_left', { id }); }
 
     async updateMyState(newData) {
         if (!this.channel) return;
         this.myLastData = newData;
         await this.channel.track(newData);
-    }
-
-    async broadcastGameStart(seedData) {
-        if (!this.channel) return;
-        await this.channel.send({
-            type:    'broadcast',
-            event:   'game_start',
-            payload: { seed: seedData },
-        });
-    }
-
-    async broadcastForceNicknameReset(targetId) {
-        if (!this.channel) return;
-        await this.channel.send({
-            type:    'broadcast',
-            event:   'force_reset_nickname',
-            payload: { targetId },
-        });
-    }
-
-    async broadcastPlayerLeft(id) {
-        if (!this.channel) return;
-        await this.channel.send({
-            type:    'broadcast',
-            event:   'player_left',
-            payload: { id },
-        });
     }
 
     async disconnect() {
@@ -209,55 +152,34 @@ export class NetworkClient {
         }
     }
 
-    // [내부] 채널 구독 해지 및 참조 초기화
     async _cleanup() {
         await this.channel.unsubscribe();
         await supabase.removeChannel(this.channel);
-        this.channel    = null;
+        this.channel = null;
         this.myLastData = null;
     }
 
-    // 🚀 [추가] 방장이 방을 만들 때 DB에 방 코드 등록
     async registerRoomToDB(roomCode) {
-        try {
-            await supabase.from('active_rooms').insert([{ room_code: roomCode }]);
-        } catch (e) { console.error('DB 등록 실패:', e); }
+        try { await supabase.from('active_rooms').insert([{ room_code: roomCode }]); } catch (e) {}
     }
 
-    // 🚀 [추가] 게임이 시작되거나 방장이 나갈 때 DB에서 방 코드 삭제
     async unregisterRoomFromDB(roomCode) {
-        try {
-            await supabase.from('active_rooms').delete().eq('room_code', roomCode);
-        } catch (e) { console.error('DB 삭제 실패:', e); }
+        try { await supabase.from('active_rooms').delete().eq('room_code', roomCode); } catch (e) {}
     }
 
-    // 🚀 [추가] DB에서 무작위 방 코드 하나 가져오기
     async getRandomRoomFromDB() {
         try {
-            // 최대 50개의 활성 방을 가져와서 그 중 하나를 랜덤으로 뽑습니다.
             const { data, error } = await supabase.from('active_rooms').select('room_code').limit(50);
             if (error || !data || data.length === 0) return null;
-            
-            const randomIndex = Math.floor(Math.random() * data.length);
-            return data[randomIndex].room_code;
-        } catch (e) { 
-            console.error('랜덤 방 찾기 실패:', e); 
-            return null; 
-        }
+            return data[Math.floor(Math.random() * data.length)].room_code;
+        } catch (e) { return null; }
     }
 
-    // 🚀 [추가] 브라우저 종료/새로고침 시 방 코드를 끝까지 책임지고 지우는 메서드
     unregisterRoomFromDBOnUnload(roomCode) {
-        // Supabase SDK가 아닌 브라우저 내장 fetch를 사용합니다.
-        const url = `${SUPABASE_URL}/rest/v1/active_rooms?room_code=eq.${roomCode}`;
-        
-        fetch(url, {
+        fetch(`${SUPABASE_URL}/rest/v1/active_rooms?room_code=eq.${roomCode}`, {
             method: 'DELETE',
-            headers: {
-                'apikey': SUPABASE_KEY,
-                'Authorization': `Bearer ${SUPABASE_KEY}`
-            },
-            keepalive: true // 🚀 핵심: 탭이 닫혀도 브라우저가 백그라운드에서 이 요청을 끝까지 전송함
-        }).catch(e => console.error('강제 종료 DB 삭제 실패:', e));
+            headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` },
+            keepalive: true
+        }).catch(() => {});
     }
 }
