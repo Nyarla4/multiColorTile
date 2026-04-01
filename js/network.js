@@ -69,7 +69,11 @@ export class NetworkClient {
         this.onGameStart          = null;
         this.onForceNicknameReset = null;
         this.onPlayerLeft         = null;
-        this.onPlayerKicked = null; // 🚀 [추가] 추방 알림 콜백
+        this.onPlayerKicked       = null;
+        
+        // 🚀 [추가] Broadcast용 콜백 변수
+        this.onSyncScore          = null; 
+        this.onSyncHistory        = null;
     }
 
     // [흐름] 채널 접속 — Promise로 성공/실패를 명확히 반환
@@ -105,9 +109,16 @@ export class NetworkClient {
             this.channel.on('broadcast', { event: 'player_left' }, (payload) => {
                 if (this.onPlayerLeft) this.onPlayerLeft(payload.payload.id);
             });
-            // 🚀 [추가] 방장이 쏜 추방 방송 수신
             this.channel.on('broadcast', { event: 'player_kicked' }, (payload) => {
                 if (this.onPlayerKicked) this.onPlayerKicked(payload.payload.targetId);
+            });
+
+            // 🚀 [추가] 점수와 리플레이를 무전기(Broadcast)로 수신받는 흐름
+            this.channel.on('broadcast', { event: 'sync_score' }, (payload) => {
+                if (this.onSyncScore) this.onSyncScore(payload.payload.id, payload.payload.score);
+            });
+            this.channel.on('broadcast', { event: 'sync_history' }, (payload) => {
+                if (this.onSyncHistory) this.onSyncHistory(payload.payload.id, payload.payload.score, payload.payload.history);
             });
 
             this.channel.subscribe(async (status) => {
@@ -259,5 +270,25 @@ export class NetworkClient {
             },
             keepalive: true // 🚀 핵심: 탭이 닫혀도 브라우저가 백그라운드에서 이 요청을 끝까지 전송함
         }).catch(e => console.error('강제 종료 DB 삭제 실패:', e));
+    }
+
+    // 🚀 [추가] 실시간 점수를 무전기로 쏘는 메서드 (빠름)
+    async broadcastScore(id, score) {
+        if (!this.channel) return;
+        await this.channel.send({
+            type: 'broadcast',
+            event: 'sync_score',
+            payload: { id, score }
+        });
+    }
+
+    // 🚀 [추가] 무거운 리플레이를 무전기로 쏘는 메서드 (용량 제한 널널함)
+    async broadcastHistory(id, score, history) {
+        if (!this.channel) return;
+        await this.channel.send({
+            type: 'broadcast',
+            event: 'sync_history',
+            payload: { id, score, history }
+        });
     }
 }

@@ -645,6 +645,25 @@ class AppController {
                 this._refreshPlayerView();
             }
         };
+
+        // 🚀 [추가] 무전기로 날아온 점수 즉시 반영
+        this.network.onSyncScore = (id, score) => {
+            const p = this.roomManager.players.find(p => p.id === id);
+            if (p) {
+                p.score = score;
+                this._refreshPlayerView();
+            }
+        };
+
+        // 🚀 [추가] 무전기로 날아온 거대한 리플레이 택배 수령
+        this.network.onSyncHistory = (id, score, history) => {
+            const p = this.roomManager.players.find(p => p.id === id);
+            if (p) {
+                p.score = score;
+                p.history = history;
+                this._refreshPlayerView();
+            }
+        };
     }
 
     // [내부] 게임 중/대기 중 상태에 따라 적절한 뷰 갱신
@@ -892,14 +911,9 @@ class AppController {
         // 🚀 서버 과부하 방지: 점수가 바뀌었을 때만 1초에 1번 서버로 동기화
         if (this.lastSyncedScore !== this.scoreTimer.score) {
             this.lastSyncedScore = this.scoreTimer.score;
-            const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
-            if (me) {
-                this.network.updateMyState({
-                    ...me,
-                    score: this.scoreTimer.score,
-                    updatedAt: Date.now(),
-                });
-            }
+            
+            // 🚀 [수정] 무거운 updateMyState(상태망) 대신 빠르고 가벼운 무전기(방송망)로 교체!
+            this.network.broadcastScore(this.roomManager.myId, this.scoreTimer.score);
         }
 
         if (this.scoreTimer.isTimeUp()) this.endGame();
@@ -946,28 +960,30 @@ class AppController {
         this.board      = null;
         this.scoreTimer = null;
 
-        // 🚀 [추가] 통신 지연이나 누락에 대비해, 내 로컬 객체에 결과를 확정 지어둡니다.
+        // 통신 지연이나 누락에 대비해, 내 로컬 객체에 결과를 확정 지어둡니다.
         const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
         if (me) {
             me.score = finalScore;
             me.history = this.myActionHistory; 
         }
 
-        // 🚀 수정: 문제의 원인이었던 "게스트 투명인간(isLeaving)" 분기를 완전히 삭제했습니다!
-        // 누구나 동일하게 최종 점수와 history를 서버로 쏘며, isPlaying은 true로 유지합니다.
+        // 🚀 1. 상태망(Presence)에는 가벼운 텍스트 상태만 유지하도록 올립니다. 
+        // 🚨(history 삭제! 이게 통신망을 끊어먹던 주범입니다)🚨
         this.network.updateMyState({
             id:        this.roomManager.myId,
             nickname:  this.roomManager.myNickname,
             isHost:    this.roomManager.isHost,
             isReady:   false,
-            isPlaying: true, // 🚀 결과창에 떠 있어야 하므로 true 유지
+            isPlaying: true, 
             score:     finalScore,
-            history:   this.myActionHistory, // 여기서 전송한 택배가 늦게 도착함
             updatedAt: Date.now(),
         });
 
+        // 🚀 2. 덩치가 큰 리플레이 데이터(history)는 용량 제한이 널널한 무전기(Broadcast)로 별도 발송!
+        this.network.broadcastHistory(this.roomManager.myId, finalScore, this.myActionHistory);
+
         this.ui.switchScreen('screen-result');
-        this._refreshPlayerView(); // 🚀 UI 그리기를 동기화 메서드로 위임
+        this._refreshPlayerView();
     }
 
     // [흐름] 지정 시점(step)의 보드 상태를 계산 후 즉시 렌더링
