@@ -50,7 +50,25 @@ export class RoomManager {
     }
 
     syncPlayers(playersData) {
-        this.players = playersData.filter(p => !this.leftPlayers.has(p.id));
+        // 1. 기존에 들고 있던 플레이어들의 상태(특히 무전기로 받은 history)를 백업합니다.
+        const oldPlayers = new Map(this.players.map(p => [p.id, p]));
+
+        // 2. 서버에서 온 새로운 상태망 데이터로 덮어쓰되, 중요한 로컬 데이터는 보존합니다.
+        this.players = playersData.filter(p => !this.leftPlayers.has(p.id)).map(p => {
+            const old = oldPlayers.get(p.id);
+            if (old) {
+                // 🚀 [핵심 수정] 상태망(Presence)에는 없는 리플레이 기록(history)이 날아가지 않도록 강제 병합합니다!
+                if (old.history && old.history.length > 0) {
+                    p.history = old.history;
+                }
+                
+                // (보너스 방어) 혹시 모를 딜레이로 인해 게임 중 점수가 0점으로 롤백되는 현상 방지
+                if (old.isPlaying && p.isPlaying && p.score === 0 && old.score > 0) {
+                    p.score = old.score;
+                }
+            }
+            return p;
+        });
     }
 
     markPlayerAsLeft(id) {
