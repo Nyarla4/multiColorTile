@@ -524,6 +524,7 @@ class AppController {
         this.replayInterval     = null;
         this.selectedPlayerData = null;
         this.replayStep         = 0;
+        this.lastSyncedScore    = -1; // 🚀 [추가] 마지막으로 서버에 보낸 점수 기억
 
         // 🚀 [추가] 저장된 강제 시작 설정 불러오기 (기본값: false)
         this.isForceStartPersistent = localStorage.getItem('tileclear_force_start') === 'true';
@@ -867,6 +868,7 @@ class AppController {
         this.isGameRunning   = true;
         this.currentSeed     = seed;
         this.myActionHistory = [];
+        this.lastSyncedScore = 0; // 🚀 [추가] 게임 시작 시 초기화
 
         this.board      = new Board(GameConfig);
         this.board.initializeWithSeed(seed);
@@ -886,6 +888,20 @@ class AppController {
         if (!this.isGameRunning) return;
         const timeLeft = this.scoreTimer.tick();
         this.ui.updateStats(timeLeft, this.scoreTimer.score);
+
+        // 🚀 서버 과부하 방지: 점수가 바뀌었을 때만 1초에 1번 서버로 동기화
+        if (this.lastSyncedScore !== this.scoreTimer.score) {
+            this.lastSyncedScore = this.scoreTimer.score;
+            const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
+            if (me) {
+                this.network.updateMyState({
+                    ...me,
+                    score: this.scoreTimer.score,
+                    updatedAt: Date.now(),
+                });
+            }
+        }
+
         if (this.scoreTimer.isTimeUp()) this.endGame();
     }
 
@@ -910,19 +926,14 @@ class AppController {
         // 성공/실패 모두 점수·기록 갱신
         this.ui.updateStats(this.scoreTimer.time, this.scoreTimer.score);
 
-        this.myActionHistory.push({
-            timeLeft:     this.scoreTimer.time,
-            indexClicked: index,
-            currentScore: this.scoreTimer.score,
-        });
+        // 🚀 [수정] 데이터 압축: 긴 객체 대신 짧은 배열로 저장하여 서버 전송 용량 최적화
+        this.myActionHistory.push([this.scoreTimer.time, index, this.scoreTimer.score]);
 
+        // 🚀 네트워크 전송(updateMyState) 코드는 삭제하고, 내 화면의 랭킹판만 즉시 갱신합니다.
         const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
         if (me) {
-            this.network.updateMyState({
-                ...me,
-                score:     this.scoreTimer.score,
-                updatedAt: Date.now(),
-            });
+            me.score = this.scoreTimer.score;
+            this._refreshPlayerView(); // 내 점수는 0.1초의 딜레이도 없이 랭킹판에 즉시 반영!
         }
     }
 
@@ -934,6 +945,13 @@ class AppController {
         this.scoreTimer?.stop();
         this.board      = null;
         this.scoreTimer = null;
+
+        // 🚀 [추가] 통신 지연이나 누락에 대비해, 내 로컬 객체에 결과를 확정 지어둡니다.
+        const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
+        if (me) {
+            me.score = finalScore;
+            me.history = this.myActionHistory; 
+        }
 
         // 🚀 수정: 문제의 원인이었던 "게스트 투명인간(isLeaving)" 분기를 완전히 삭제했습니다!
         // 누구나 동일하게 최종 점수와 history를 서버로 쏘며, isPlaying은 true로 유지합니다.
@@ -967,11 +985,25 @@ class AppController {
         let currentTime  = GameConfig.timeLimit;
 
         for (let i = 0; i < step; i++) {
-            const action      = actions[i];
-            const targetTiles = replayBoard.getMatchedTilesToDestroy(action.indexClicked);
-            targetTiles.forEach(idx => { replayBoard.grid[idx] = null; });
-            currentScore = action.currentScore;
-            currentTime  = action.timeLeft;
+            const action = actions[i];
+            let idx, score, time;
+
+            // 🚀 [수정] 압축된 배열 포맷 해독 지원
+            if (Array.isArray(action)) {
+                time = action[0];
+                idx = action[1];
+                score = action[2];
+            } else {
+                // (기존 포맷 하위 호환성)
+                time = action.timeLeft;
+                idx = action.indexClicked;
+                score = action.currentScore;
+            }
+
+            const targetTiles = replayBoard.getMatchedTilesToDestroy(idx);
+            targetTiles.forEach(id => { replayBoard.grid[id] = null; });
+            currentScore = score;
+            currentTime  = time;
         }
 
         this.ui.redrawReplayBoard(replayBoard.grid);
