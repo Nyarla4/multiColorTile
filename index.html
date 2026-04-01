@@ -22,12 +22,12 @@
                 <br>고치는 중...
             </p>
             <br>
-            <button class="btn-secondary" style="width: 100%; padding: 15px;" disabled>방 생성</button><!--id="btn-create-room"-->
+            <button id="btn-create-room" class="btn-secondary" style="width: 100%; padding: 15px;">방 생성</button>
             <div class="form-group" style="margin-top: 30px;">
                 <input type="text" id="input-room-code" placeholder="방 코드" maxlength="4" autocomplete="off">
-                <button id="btn-join-room" disabled>방 접속</button>
+                <button id="btn-join-room">방 접속</button>
             </div>
-            <button id="btn-quick-join" class="btn-primary" style="width: 100%; margin-top: 10px; padding: 15px;" disabled>
+            <button id="btn-quick-join" class="btn-primary" style="width: 100%; margin-top: 10px; padding: 15px;">
                 빠른 입장 (랜덤 매칭)
             </button>
         </div>
@@ -35,7 +35,7 @@
     </div>
 
     <!-- 버전 뱃지 -->
-    <div id="btn-version" class="version-badge">v1.13.3</div>
+    <div id="btn-version" class="version-badge">v1.13.4</div>
 
     <!-- 업데이트 로그 모달 -->
     <div id="modal-changelog" class="modal-overlay" style="display: none;">
@@ -96,6 +96,10 @@
                 <ul>
                     <li>강제 시작 유지</li>
                 </ul>
+                <h4>v1.13.4</h4>
+                <ul>
+                    <li>점수 동기화, 리플레이 오류 수정</li>
+                </ul>
                 <h4>-버전 올리기 쪼끔 그럼-</h4>
                 <ul>
                     <li>1.9.3 ~ 1.10.3: 쿠로카 퍼플, 라떼 블루 좀 더 구분되도록 시도</li>
@@ -110,7 +114,6 @@
             <div class="modal-buttons" style="margin-top: 20px;">
                 <button id="modal-btn-close-changelog" class="btn-primary" style="width: 100%;">닫기</button>
             </div>
-            <button id="btn-create-room">테스트</button>
         </div>
     </div>
 
