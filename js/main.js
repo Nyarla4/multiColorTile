@@ -569,17 +569,19 @@ class AppController {
         // 강제 시작 토글
         this.ui.toggleForceStart?.addEventListener('change', (e) => this.handleForceStartToggle(e.target.checked));
 
-        // 창 닫기/새로고침 시 나가기 처리
-        window.addEventListener('beforeunload', () => {
+        // 🚀 [수정] 창 닫기/새로고침/모바일 백그라운드 전환 시 나가기 처리
+        // 기존 익명 함수를 변수(handleUnload)로 빼서 두 이벤트에 모두 걸어줍니다.
+        const handleUnload = () => {
             if (this.roomManager.currentRoomCode) {
                 if (this.roomManager.isHost) {
-                    // 비동기(await) SDK 메서드 대신 keepalive가 적용된 동기식 메서드 호출
                     this.network.unregisterRoomFromDBOnUnload(this.roomManager.currentRoomCode);
                 }
-                // 통신망 연결 해제 (이것도 끊길 수 있지만 채널은 서버가 알아서 정리해 줌)
                 this.network.disconnect();
             }
-        });
+        };
+
+        window.addEventListener('beforeunload', handleUnload);
+        window.addEventListener('pagehide', handleUnload); // 🚀 사파리/모바일 강제종료 방어막 추가!
 
         // 🚀 하는 방법 모달 이벤트 연결
         this.ui.btnHowTo?.addEventListener('click', () => this.ui.showHowTo());
@@ -834,6 +836,10 @@ class AppController {
             this.roomManager.clearRoomState();
 
             if (error.message === 'ROOM_NOT_FOUND') {
+                
+                // 🚀 [추가] 유령 방 청소기: 이 방은 DB에만 살아있는 죽은 방이므로 직접 삭제해 줍니다!
+                this.network.unregisterRoomFromDB(code);
+
                 this.ui.showRoomNotFoundModal(
                     async () => {
                         try {
