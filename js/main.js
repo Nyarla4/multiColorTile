@@ -790,11 +790,22 @@ class AppController {
 
     // [흐름] 방 생성
     async handleCreateRoom() {
+        const btn = document.getElementById('btn-create-room');
+        
+        // 🚀 1. 버튼을 누르는 즉시 시각적 피드백 제공 (중복 클릭 방지)
+        btn.innerText = '방 생성 중... ⏳';
+        btn.disabled = true;
+
         const newCode = this.roomManager.generateRoomCode();
         try {
             await this._createRoomAsHost(newCode);
-        } catch {
-            alert('방 생성에 실패했습니다. 다시 시도해주세요.');
+        } catch (error) {
+            // 🚀 2. 무한 대기 대신, 아까 network.js에서 던진 에러를 받아서 띄워줍니다!
+            alert(`방 생성에 실패했습니다. (원인: ${error.message})\n잠시 후 다시 시도해주세요.`);
+        } finally {
+            // 🚀 3. 성공하든 실패하든 처리가 끝나면 버튼 상태를 원래대로 복구
+            btn.innerText = '방 생성';
+            btn.disabled = false;
         }
     }
 
@@ -802,6 +813,12 @@ class AppController {
     async handleJoinRoom() {
         const code = this.ui.getInputValue();
         if (code.length !== 4) { alert('4자리 방 코드를 정확히 입력해주세요.'); return; }
+        
+        const btn = document.getElementById('btn-join-room');
+        
+        // 🚀 버튼 클릭 즉시 피드백
+        btn.innerText = '접속 중... ⏳';
+        btn.disabled = true;
 
         try {
             await this.network.connectToRoom(code, {
@@ -830,6 +847,10 @@ class AppController {
             } else {
                 alert('방 접속에 실패했습니다. 다시 시도해주세요.');
             }
+        } finally {
+            // 🚀 상태 복구
+            btn.innerText = '방 접속';
+            btn.disabled = false;
         }
     }
 

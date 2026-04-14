@@ -155,7 +155,17 @@ export class NetworkClient {
             });
 
             this.channel.subscribe(async (status) => {
-                if (status !== 'SUBSCRIBED') return;
+                if (status !== 'SUBSCRIBED') {
+                    if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                        // 🚀 [핵심 수정] 실패했을 때 무한 대기하지 말고, 에러를 뱉어내게(reject) 만듭니다!
+                        console.error('[Network] 채널 구독 실패:', status);
+                        await this._cleanup();
+                        reject(new Error(status));
+                    }
+                    else {
+                        return;
+                    }
+                }
 
                 console.log(`[Network] ${roomCode} 채널 접속 완료`);
 
