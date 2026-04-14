@@ -50,30 +50,45 @@ export class RoomManager {
     }
 
     syncPlayers(playersData) {
-        // 1. 기존에 들고 있던 플레이어들의 상태(특히 무전기로 받은 history)를 백업합니다.
         const oldPlayers = new Map(this.players.map(p => [p.id, p]));
+        const newPlayersMap = new Map(playersData.map(p => [p.id, p]));
 
-        // 2. 서버에서 온 새로운 상태망 데이터로 덮어쓰되, 중요한 로컬 데이터는 보존합니다.
-        this.players = playersData.filter(p => !this.leftPlayers.has(p.id)).map(p => {
+        let merged = playersData.filter(p=> !this.leftPlayers.has(p.id)).map(p=>{
             const old = oldPlayers.get(p.id);
-            if (old) {
-                // 🚀 [핵심 수정] 상태망(Presence)에는 없는 리플레이 기록(history)이 날아가지 않도록 강제 병합합니다!
-                if (old.history && old.history.length > 0) {
-                    p.history = old.history;
-                }
-                
-                // (보너스 방어) 혹시 모를 딜레이로 인해 게임 중 점수가 0점으로 롤백되는 현상 방지
-                if (old.isPlaying && p.isPlaying && p.score === 0 && old.score > 0) {
-                    p.score = old.score;
-                }
+            if(old){
+                if(old.history && old.history.length > 0) p.history = old.history;
+                if(old.isPlaying && p.isPlaying && p.score === 0 && old.score > 0) p.score = old.score;
             }
             return p;
         });
+
+        // 🚀 [핵심 수정] 통신이 끊겼더라도, 게임에 참여했던 유저(isPlaying)는 '기록 보존'을 위해 지우지 않고 냅둡니다!
+        oldPlayers.forEach((old, id) => {
+            if (old.isPlaying && !newPlayersMap.has(id)) {
+                old.isLeaving = true; // 화면에 나갔다는 표시(취소선)를 띄우기 위해 상태만 변경
+                merged.push(old);
+            }
+        });
+
+        this.players = merged;
     }
 
     markPlayerAsLeft(id) {
         this.leftPlayers.add(id);
-        this.players = this.players.filter(p => p.id !== id);
+        const player = this.players.find(p => p.id === id);
+        
+        if (player && player.isPlaying) {
+            // 🚀 대기실이 아닌 게임/결과창에서는 배열에서 지우지 않고 취소선 처리만 합니다.
+            player.isLeaving = true;
+        } else {
+            // 대기실에 있던 유저면 미련 없이 바로 지웁니다.
+            this.players = this.players.filter(p => p.id !== id);
+        }
+    }
+
+    // 🚀 [추가] 대기실로 복귀할 때, 기록용으로 남겨뒀던 나간 유저들을 비로소 일괄 청소합니다.
+    cleanLeftPlayers() {
+        this.players = this.players.filter(p => !this.leftPlayers.has(p.id));
     }
 }
 
