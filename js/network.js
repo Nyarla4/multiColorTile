@@ -166,7 +166,9 @@ export class NetworkClient {
                         return;
                     }
                 }
-
+                
+                if (!this.channel) return;
+                
                 console.log(`[Network] ${roomCode} 채널 접속 완료`);
 
                 if (myData.isHost) {
