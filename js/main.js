@@ -673,40 +673,26 @@ class AppController {
             this.ui.renderLeaderboard(activePlayers, this.roomManager.myId);
             
         } else if (this.currentScreen === 'result') {
+            // 🚀 [추가] 누군가의 최종 점수나 리플레이(history)가 지연 도착했을 때 결과창을 갱신합니다.
             const activePlayers = this.roomManager.players.filter(p => p.isPlaying);
+            
+            // 리렌더링 시 기존에 클릭해서 보고 있던 사람을 기억해 둡니다. (없으면 나)
             const prevSelectedId = this.selectedPlayerData?.id || this.roomManager.myId;
 
             this.ui.renderResultBoard(activePlayers, this.roomManager.myId, (selectedPlayer) => {
-                // 🚀 [추가] 방금 클릭된 카드가 내가 이미 보고 있던 사람의 카드인지 확인!
-                const isSamePlayer = this.selectedPlayerData?.id === selectedPlayer.id;
-
                 this.selectedPlayerData = selectedPlayer;
+                this.pauseReplay();
                 const historyCount = selectedPlayer.history?.length ?? 0;
-
-                if (!isSamePlayer) {
+                this.ui.setupReplayUI(selectedPlayer, this.currentSeed);
+                this.ui.setupReplaySlider(historyCount, (step) => {
                     this.pauseReplay();
-                    this.ui.setupReplayUI(selectedPlayer, this.currentSeed);
-                    this.ui.setupReplaySlider(historyCount, (step) => {
-                        this.pauseReplay();
-                        this.goToReplayStep(step);
-                    });
-                    this.goToReplayStep(historyCount);
-                }
-                else {
-                    // 화면 갱신으로 인해 '같은 사람'이 자동 클릭된 경우 -> 재생 유지!
-                    this.ui.setupReplaySlider(historyCount, (step) => {
-                        this.pauseReplay();
-                        this.goToReplayStep(step);
-                    });
-                    // 비디오를 정지하지 않고, 현재 재생 중이던 위치(step)의 화면만 다시 그려줌
-                    this.goToReplayStep(this.replayStep);
-                }
+                    this.goToReplayStep(step);
+                });
+                this.goToReplayStep(historyCount);
             });
 
-            let playerToSelect = activePlayers.find(p => p.id === prevSelectedId);
-            if (!playerToSelect) {
-                playerToSelect = activePlayers.find(p => p.id === this.roomManager.myId);
-            }
+            // 🚀 새 택배를 뜯어서 화면을 다시 그렸으니, 아까 보던 사람의 카드를 자동으로 다시 클릭해 줍니다.
+            const playerToSelect = activePlayers.find(p => p.id === prevSelectedId);
             if (playerToSelect) {
                 const card = Array.from(this.ui.resultLeaderboard.children).find(c => c.dataset.id === playerToSelect.id);
                 if (card) card.click(); // 강제 클릭 이벤트 발생
@@ -1070,11 +1056,8 @@ class AppController {
 
     // [흐름] 결과 화면 → 대기실 복귀
     handleBackToRoom() {
-        this.currentScreen = 'room';
+        this.currentScreen = 'room'; // 🚀 [추가]
         this.pauseReplay();
-
-        // 🚀 [추가] 대기실로 돌아갈 때 비로소 나간 사람들의 데이터를 배열에서 청소합니다.
-        this.roomManager.cleanLeftPlayers();
 
         this.network.updateMyState({
             id:        this.roomManager.myId,
@@ -1082,8 +1065,8 @@ class AppController {
             isHost:    this.roomManager.isHost,
             isReady:   false,
             isLeaving: false,
-            isPlaying: false,
-            isForceStartOn: this.isForceStartPersistent,
+            isPlaying: false, // 🚀 [추가] 대기실로 복귀했으므로 다시 입장 가능하도록 해제
+            isForceStartOn: this.isForceStartPersistent, // 🏠 설정 유지
             score:     0,
             history:   [],
             updatedAt: Date.now(),
