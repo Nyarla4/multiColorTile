@@ -3,7 +3,13 @@ const { Server } = require("socket.io");
 const http = require("http");
 
 // 1. HTTP 서버 생성 (Render 등 클라우드 배포 환경에서 필수)
-const server = http.createServer();
+// 🚀 [수정] 브라우저로 접속하면 화면에 글자를 띄워주도록 응답 추가
+const server = http.createServer((req, res) => {
+    if (req.method === 'GET' && req.url === '/') {
+        res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end('소켓 서버가 정상적으로 켜져 있습니다! 🚀');
+    }
+});
 
 // 2. CORS 설정: 허용할 도메인 목록
 const ALLOWED_ORIGINS = [
