@@ -1,3 +1,95 @@
+// 🚀 1. 서버 URL 동적 세팅 (로컬 vs 배포)
+const SERVER_URL = window.location.hostname === 'localhost' 
+    ? 'http://localhost:3000' 
+    : 'https://multicolortileserver.onrender.com'
+
+
+// ============================================================================
+// [구조] 방·플레이어 상태 관리자 (그대로 유지)
+// ============================================================================
+export class RoomManager {
+    constructor() {
+        this.currentRoomCode = null;
+        this.isHost          = false;
+        this.myId            = 'P_' + crypto.randomUUID().slice(0, 8);
+        this.myNickname      = localStorage.getItem('tileclear_nickname') || this.myId;
+        this.players         = [];
+        this.leftPlayers     = new Set();
+    }
+
+    setNickname(name) {
+        this.myNickname = name;
+        localStorage.setItem('tileclear_nickname', name);
+    }
+
+    generateRoomCode() {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let code = '';
+        for (let i = 0; i < 4; i++) {
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return code;
+    }
+
+    setRoomState(code, isHost) {
+        this.currentRoomCode = code;
+        this.isHost          = isHost;
+    }
+
+    addPlayer(id, isHost) {
+        if (!this.players.find(p => p.id === id)) {
+            this.players.push({ id, nickname: this.myNickname, isHost, isReady: false });
+        }
+    }
+
+    clearRoomState() {
+        this.currentRoomCode = null;
+        this.isHost          = false;
+        this.players         = [];
+        this.leftPlayers.clear();
+        this.myId = 'P_' + crypto.randomUUID().slice(0, 8);
+    }
+
+    syncPlayers(playersData) {
+        const oldPlayers = new Map(this.players.map(p => [p.id, p]));
+        const newPlayersMap = new Map(playersData.map(p => [p.id, p]));
+
+        let merged = playersData.filter(p => !this.leftPlayers.has(p.id)).map(p => {
+            const old = oldPlayers.get(p.id);
+            if (old) {
+                if (old.history && old.history.length > 0) p.history = old.history;
+                if (old.isPlaying && p.isPlaying && p.score === 0 && old.score > 0) p.score = old.score;
+            }
+            return p;
+        });
+
+        oldPlayers.forEach((old, id) => {
+            if (old.isPlaying && !newPlayersMap.has(id)) {
+                old.isLeaving = true;
+                merged.push(old);
+            }
+        });
+
+        this.players = merged;
+    }
+
+    markPlayerAsLeft(id) {
+        this.leftPlayers.add(id);
+        const player = this.players.find(p => p.id === id);
+        
+        if (player && player.isPlaying) {
+            player.isLeaving = true;
+        } else {
+            this.players = this.players.filter(p => p.id !== id);
+        }
+    }
+
+    cleanLeftPlayers() {
+        this.players = this.players.filter(p => !this.leftPlayers.has(p.id));
+    }
+}
+
+
 // ============================================================================
 // [흐름] Socket.io 통신 전담 기사
 // ============================================================================
