@@ -15,7 +15,7 @@ const server = http.createServer((req, res) => {
 const ALLOWED_ORIGINS = [
     "http://localhost:5173",       // 로컬 테스트 (Vite 기본 포트)
     "http://127.0.0.1:5173",
-    "https://multi-color-tile-retry.vercel.app/" // 🚀 Vercel에 배포된 실제 프론트엔드 주소로 변경하세요!
+    "https://multi-color-tile-retry.vercel.app" // 🚀 Vercel에 배포된 실제 프론트엔드 주소로 변경하세요!
 ];
 
 const io = new Server(server, {
