@@ -51,9 +51,9 @@ class LobbyUI {
 
         // 로비
         this.inputRoomCode = document.getElementById('input-room-code');
-        this.btnHowTo      = document.getElementById('btn-how-to');      // 🚀 추가
-        this.modalHowTo    = document.getElementById('modal-how-to');    // 🚀 추가
-        this.btnHowToClose = document.getElementById('modal-btn-close-how-to'); // 🚀 추가
+        this.btnHowTo      = document.getElementById('btn-how-to');      
+        this.modalHowTo    = document.getElementById('modal-how-to');    
+        this.btnHowToClose = document.getElementById('modal-btn-close-how-to'); 
 
         // 대기실
         this.roomTitle          = document.getElementById('room-title');
@@ -100,30 +100,25 @@ class LobbyUI {
         this.isEmojiMode = false;
     }
     
-    // 🚀 모달 표시/숨김 헬퍼
     showHowTo() { this.modalHowTo.style.display = 'flex'; }
     hideHowTo() { this.modalHowTo.style.display = 'none'; }
 
-    // [흐름] 다크/라이트 테마 초기화 — localStorage 저장값 복원
     initTheme() {
         const savedTheme = localStorage.getItem('tileclear_theme') || 'dark';
         this._applyTheme(savedTheme === 'light');
     }
 
-    // [흐름] 다크/라이트 테마 전환
     toggleTheme() {
         const isLight = document.body.classList.toggle('light-mode');
         localStorage.setItem('tileclear_theme', isLight ? 'light' : 'dark');
         this._applyTheme(isLight);
     }
 
-    // [내부] 테마 적용 (아이콘 갱신 포함)
     _applyTheme(isLight) {
         document.body.classList.toggle('light-mode', isLight);
         if (this.btnThemeToggle) this.btnThemeToggle.innerText = isLight ? '☀️' : '🌙';
     }
 
-    // [흐름] 테마 목록을 드롭다운에 초기 생성
     initThemeSelector() {
         this.selectTheme.innerHTML = '';
         for (const [key, palette] of Object.entries(GameConfig.palettes)) {
@@ -134,7 +129,6 @@ class LobbyUI {
         }
     }
 
-    // [흐름] 이모지 토글 이벤트 바인딩 — AppController.bindEvents()에서 호출
     bindToggleEvents() {
         const handleToggle = (e) => {
             this.isEmojiMode = e.target.checked;
@@ -147,7 +141,6 @@ class LobbyUI {
         this.toggleEmojiReplay?.addEventListener('change', handleToggle);
     }
 
-    // [흐름] 방 없음 모달 표시 — 버튼을 clone으로 교체해 이벤트 중복 방지
     showRoomNotFoundModal(onCreateCallback, onCancelCallback) {
         this.modalRoomNotFound.style.display = 'flex';
 
@@ -166,19 +159,16 @@ class LobbyUI {
     showChangelog()         { this.modalChangelog.style.display = 'flex'; }
     hideChangelog()         { this.modalChangelog.style.display = 'none'; }
 
-    // [흐름] 화면 전환
     switchScreen(screenId) {
         [this.screenLobby, this.screenRoom, this.screenGame, this.screenResult]
             .forEach(s => s.classList.remove('active'));
         document.getElementById(screenId).classList.add('active');
     }
 
-    // [흐름] 대기실 헤더 갱신
     updateRoomView(roomCode, isHost) {
         this.roomTitle.innerText  = roomCode;
     }
 
-    // 🚀 [구조 추가] 방 상태 메시지만 전문적으로 갱신하는 헬퍼 메서드
     updateRoomStatusText(isHost, isAnyPlaying) {
         if (isHost) {
             this.roomStatus.innerText = '당신은 방장입니다. 다른 플레이어를 기다리는 중...';
@@ -189,23 +179,19 @@ class LobbyUI {
         }
     }
 
-    // [흐름] 로비 입력값
     getInputValue()       { return this.inputRoomCode.value.trim().toUpperCase(); }
-    setInputValue(value)  { this.inputRoomCode.value = value; } // 빠른 입장 등 외부에서 코드 주입 시 사용
+    setInputValue(value)  { this.inputRoomCode.value = value; } 
     clearInput()          { this.inputRoomCode.value = ''; }
 
-    // [흐름] 인원수 표시 갱신
     updatePlayerCountUI(count) {
         if (this.playerCountDisplay) this.playerCountDisplay.innerText = `현재 ${count}명`;
     }
 
-    // [흐름] 접속자 목록 렌더링
     renderPlayers(players, myId, isHost, onResetCallback, onKickCallback) {
         this.playerList.innerHTML = '';
         players.forEach(p => {
             const li = document.createElement('li');
 
-            // 왼쪽: 닉네임
             const nameSpan = document.createElement('span');
             const nameText = (p.nickname || p.id) + (p.id === myId ? ' (나)' : '');
             nameSpan.innerText = nameText;
@@ -214,7 +200,6 @@ class LobbyUI {
                 nameSpan.style.fontWeight = 'bold';
             }
 
-            // 오른쪽: 상태 + 관리 버튼 묶음
             const rightWrap = document.createElement('div');
             rightWrap.style.cssText = 'display:flex; align-items:center; gap:15px;';
 
@@ -232,7 +217,6 @@ class LobbyUI {
             }
             rightWrap.appendChild(statusSpan);
 
-            // 방장에게만, 본인 제외 관리 버튼 노출
             if (isHost && p.id !== myId) {
                 const actionDiv = document.createElement('div');
                 actionDiv.className = 'player-actions';
@@ -262,21 +246,18 @@ class LobbyUI {
         });
     }
 
-    // [흐름] 방장/게스트 버튼 분기 및 강제시작 토글 활성화 여부
     setupButtons(isHost) {
         this.btnReady.style.display    = isHost ? 'none'  : 'block';
         this.btnStart.style.display    = isHost ? 'block' : 'none';
         this.toggleForceStart.disabled = !isHost;
     }
 
-    // [흐름] 강제 시작 토글 UI 동기화 (방장의 Presence 상태를 읽어 반영)
     updateForceStartUI(isOn) {
         if (this.toggleForceStart.checked !== isOn) {
             this.toggleForceStart.checked = isOn;
         }
     }
 
-    // [흐름] 준비 버튼 상태 UI 갱신
     updateReadyButtonUI(isReady) {
         if (isReady) {
             this.btnReady.innerText = '준비 취소';
@@ -287,7 +268,6 @@ class LobbyUI {
         }
     }
 
-    // [흐름] 닉네임 입력창
     initNicknameInput(nickname) { this.inputNickname.value = nickname; }
     getNicknameInput()          { return this.inputNickname.value.trim(); }
 
@@ -297,16 +277,13 @@ class LobbyUI {
         setTimeout(() => { this.nicknameStatus.innerText = ''; }, 2000);
     }
 
-    // [흐름] 실시간 순위표 렌더링
     renderLeaderboard(players, myId) {
-        // 1. 헤더가 없으면 처음 한 번만 생성
         if (!this.leaderboard.querySelector('.leaderboard-header')) {
             this.leaderboard.innerHTML = '<strong class="leaderboard-header" style="display:block; margin-bottom:10px;">🏆 실시간 순위</strong>';
         }
 
         const sorted = [...players].sort((a, b) => (b.score || 0) - (a.score || 0));
 
-        // 2. 현재 화면에 있는 순위표 줄(row)들을 수집해서 Map으로 관리
         const existingRows = Array.from(this.leaderboard.querySelectorAll('.leaderboard-row'));
         const rowMap = new Map();
         existingRows.forEach(row => rowMap.set(row.dataset.id, row));
@@ -319,7 +296,6 @@ class LobbyUI {
 
             let row = rowMap.get(p.id);
 
-            // 3. 해당 유저의 줄이 없다면 새로 생성 (구조)
             if (!row) {
                 row = document.createElement('div');
                 row.className = 'leaderboard-row';
@@ -337,11 +313,9 @@ class LobbyUI {
                 rowMap.delete(p.id);
             }
 
-            // 4. 텍스트 값만 갱신 (흐름)
             row.querySelector('.player-name').innerText = rankText;
             row.querySelector('.player-score').innerText = scoreText;
 
-            // 순위 변동 시 자동으로 위아래 위치 재정렬
             this.leaderboard.appendChild(row);
 
             if (isMe) { 
@@ -354,17 +328,14 @@ class LobbyUI {
             row.style.textDecoration = p.isLeaving ? 'line-through' : 'none';
         });
 
-        // 5. 방을 나간 유저 등 불필요해진 태그들만 삭제
         rowMap.forEach(row => row.remove());
     }
 
-    // [흐름] 타이머·점수 갱신
     updateStats(time, score) {
         this.uiTime.innerText  = `Time: ${time}`;
         this.uiScore.innerText = `Score: ${score}`;
     }
 
-    // [흐름] 게임 보드 최초 1회 생성
     initBoard(gridData) {
         this.gameBoard.innerHTML = '';
         gridData.forEach((tileIndex, index) => {
@@ -376,7 +347,6 @@ class LobbyUI {
         });
     }
 
-    // [흐름] 파괴된 셀 개별 업데이트 (팝 애니메이션 포함)
     updateCell(index, tileIndex) {
         const cell = this.gameBoard.children[index];
         if (!cell) return;
@@ -386,7 +356,6 @@ class LobbyUI {
             cell.classList.add('tile-pop');
             setTimeout(() => {
                 cell.classList.remove('tile-pop');
-                // 애니메이션 도중 외부 변경이 없었을 때만 빈 셀로 전환
                 if (cell.dataset.color === snapshot) this._applyCell(cell, null);
             }, 150);
         } else {
@@ -394,7 +363,6 @@ class LobbyUI {
         }
     }
 
-    // [흐름] 보드 클릭 이벤트 위임 — 앱 초기화 시 1회만 등록
     bindBoardClick(callback) {
         this.gameBoard.addEventListener('click', (e) => {
             const cell = e.target.closest('[data-index]');
@@ -402,7 +370,6 @@ class LobbyUI {
         });
     }
 
-    // [흐름] 결과 화면 순위표 렌더링
     renderResultBoard(players, myId, onSelectCallback) {
         const sorted = [...players].sort((a, b) => (b.score || 0) - (a.score || 0));
         this.resultLeaderboard.innerHTML = '';
@@ -432,17 +399,14 @@ class LobbyUI {
         });
     }
 
-    // [흐름] 리플레이 슬라이더 초기화 및 드래그 콜백 연결
     setupReplaySlider(maxSteps, onChangeCallback) {
         this.replaySlider.max     = maxSteps;
         this.replaySlider.value   = 0;
         this.replaySlider.oninput = (e) => onChangeCallback(parseInt(e.target.value, 10));
     }
 
-    // [흐름] 슬라이더 위치 갱신
     updateReplaySlider(step) { this.replaySlider.value = step; }
 
-    // [흐름] 리플레이 미니 보드 초기 세팅
     setupReplayUI(playerData, initialSeed) {
         this.replayTitle.innerText       = `[ ${playerData.nickname || playerData.id} ] 님의 플레이`;
         this.replayContent.style.display = 'flex';
@@ -458,7 +422,6 @@ class LobbyUI {
         });
     }
 
-    // [흐름] 특정 시점의 보드 상태를 미니 보드에 전체 덮어쓰기
     redrawReplayBoard(gridData) {
         Array.from(this.replayBoard.children).forEach((cell, index) => {
             this._applyCell(cell, gridData[index]);
@@ -466,14 +429,11 @@ class LobbyUI {
         });
     }
 
-    // [흐름] 리플레이 타이머·점수 갱신
     updateReplayStats(time, score) {
         this.replayTime.innerText  = `Time: ${time}`;
         this.replayScore.innerText = `Score: ${score}`;
     }
 
-    // [내부] 셀 스타일 공통 적용
-    // tileIndex: 숫자(0~9) = 타일 있음, null = 빈 칸
     _applyCell(cell, tileIndex) {
         cell.dataset.color = tileIndex !== null ? String(tileIndex) : '';
 
@@ -490,7 +450,6 @@ class LobbyUI {
         }
     }
 
-    // [내부] 이모지 모드 토글 시 특정 보드의 전체 셀 텍스트 갱신
     _refreshBoard(board) {
         if (!board) return;
         const palette = GameConfig.getActivePalette();
@@ -516,7 +475,10 @@ class AppController {
         this.board         = null;
         this.scoreTimer    = null;
         this.isGameRunning = false;
-        this.currentScreen = 'lobby'; // 🚀 [추가] 현재 화면 상태 추적
+        this.currentScreen = 'lobby'; 
+
+        // 🚀 [추가] 결과창 명단 스냅샷 변수 (동결용)
+        this.resultParticipants = null;
 
         // 리플레이 상태
         this.myActionHistory    = [];
@@ -524,9 +486,9 @@ class AppController {
         this.replayInterval     = null;
         this.selectedPlayerData = null;
         this.replayStep         = 0;
-        this.lastSyncedScore    = -1; // 🚀 [추가] 마지막으로 서버에 보낸 점수 기억
+        this.lastSyncedScore    = -1; 
 
-        // 🚀 [추가] 저장된 강제 시작 설정 불러오기 (기본값: false)
+        // 저장된 강제 시작 설정 불러오기 (기본값: false)
         this.isForceStartPersistent = localStorage.getItem('tileclear_force_start') === 'true';
 
         this.ui.initTheme();
@@ -536,7 +498,7 @@ class AppController {
         this.checkUrlAndAutoJoin();
     }
 
-    // [흐름] 이벤트 바인딩 — 앱 초기화 시 1회 실행
+    // [흐름] 이벤트 바인딩
     bindEvents() {
         document.getElementById('btn-create-room')  .addEventListener('click',   () => this.handleCreateRoom());
         document.getElementById('btn-join-room')    .addEventListener('click',   () => this.handleJoinRoom());
@@ -559,18 +521,14 @@ class AppController {
         this.ui.btnCopyLink       ?.addEventListener('click', () => this.handleCopyLink());
         this.ui.btnThemeToggle    ?.addEventListener('click', () => this.ui.toggleTheme());
 
-        // 테마 변경 시 활성 팔레트 교체 후 보드 전체 리렌더
         this.ui.selectTheme?.addEventListener('change', (e) => {
             GameConfig.activePaletteId = e.target.value;
             if (this.board) this.ui.initBoard(this.board.grid);
             if (this.selectedPlayerData) this.goToReplayStep(this.replayStep);
         });
 
-        // 강제 시작 토글
         this.ui.toggleForceStart?.addEventListener('change', (e) => this.handleForceStartToggle(e.target.checked));
 
-        // 🚀 [수정] 창 닫기/새로고침/모바일 백그라운드 전환 시 나가기 처리
-        // 기존 익명 함수를 변수(handleUnload)로 빼서 두 이벤트에 모두 걸어줍니다.
         const handleUnload = () => {
             if (this.roomManager.currentRoomCode) {
                 if (this.roomManager.isHost) {
@@ -581,32 +539,26 @@ class AppController {
         };
 
         window.addEventListener('beforeunload', handleUnload);
-        window.addEventListener('pagehide', handleUnload); // 🚀 사파리/모바일 강제종료 방어막 추가!
+        window.addEventListener('pagehide', handleUnload); 
 
-        // 🚀 하는 방법 모달 이벤트 연결
         this.ui.btnHowTo?.addEventListener('click', () => this.ui.showHowTo());
         this.ui.btnHowToClose?.addEventListener('click', () => this.ui.hideHowTo());
     }
 
-    // [흐름] 빠른 입장 — DB에서 무작위 방 코드를 가져와 접속
+    // [흐름] 빠른 입장
     async handleQuickJoin() {
         const roomCode = await this.network.getRandomRoomFromDB();
-
         if (!roomCode) {
             alert('현재 대기 중인 방이 없습니다. 직접 방을 만들어보세요!');
             return;
         }
-
-        // UI를 통해 입력창에 코드를 주입하고, 기존 접속 흐름을 그대로 재사용
         this.ui.setInputValue(roomCode);
         await this.handleJoinRoom();
     }
 
-    // [흐름] 방장이 강제 시작 토글을 변경했을 때 Presence에 반영
+    // [흐름] 강제 시작 토글
     handleForceStartToggle(isOn) {
         if (!this.roomManager.isHost) return;
-
-        // 🚀 [추가] 브라우저에 설정 저장
         this.isForceStartPersistent = isOn;
         localStorage.setItem('tileclear_force_start', isOn);
 
@@ -620,6 +572,7 @@ class AppController {
     setupNetworkCallbacks() {
         this.network.onSyncState = (playersData) => {
             this.roomManager.syncPlayers(playersData);
+            if (this.currentScreen === 'result') return; // 🚀 결과창에선 무시!
             this._refreshPlayerView();
         };
 
@@ -635,6 +588,7 @@ class AppController {
 
         this.network.onPlayerLeft = (leftId) => {
             this.roomManager.markPlayerAsLeft(leftId);
+            if (this.currentScreen === 'result') return; // 🚀 결과창 무시!
             this._refreshPlayerView();
         };
 
@@ -644,27 +598,26 @@ class AppController {
                 this.handleLeaveRoom();
             } else {
                 this.roomManager.markPlayerAsLeft(targetId);
+                if (this.currentScreen === 'result') return; // 🚀 결과창 무시!
                 this._refreshPlayerView();
             }
         };
 
-        // 🚀 [추가] 무전기로 날아온 점수 즉시 반영
+        // 🚀 뒤늦게 도착한 점수와 리플레이는 원본과 '스냅샷' 양쪽 모두에 저장합니다.
         this.network.onSyncScore = (id, score) => {
             const p = this.roomManager.players.find(p => p.id === id);
-            if (p) {
-                p.score = score;
-                this._refreshPlayerView();
-            }
+            if (p) p.score = score;
+            const rp = this.resultParticipants?.find(p => p.id === id);
+            if (rp) rp.score = score;
+            this._refreshPlayerView();
         };
 
-        // 🚀 [추가] 무전기로 날아온 거대한 리플레이 택배 수령
         this.network.onSyncHistory = (id, score, history) => {
             const p = this.roomManager.players.find(p => p.id === id);
-            if (p) {
-                p.score = score;
-                p.history = history;
-                this._refreshPlayerView();
-            }
+            if (p) { p.score = score; p.history = history; }
+            const rp = this.resultParticipants?.find(p => p.id === id);
+            if (rp) { rp.score = score; rp.history = history; }
+            this._refreshPlayerView();
         };
     }
 
@@ -675,13 +628,12 @@ class AppController {
             this.ui.renderLeaderboard(activePlayers, this.roomManager.myId);
             
         } else if (this.currentScreen === 'result') {
-            const activePlayers = this.roomManager.players.filter(p => p.isPlaying);
+            // 🚀 전체 명단 대신 '동결된 스냅샷' 사용
+            const activePlayers = this.resultParticipants || [];
             const prevSelectedId = this.selectedPlayerData?.id || this.roomManager.myId;
 
             this.ui.renderResultBoard(activePlayers, this.roomManager.myId, (selectedPlayer) => {
-                // 🚀 [추가] 방금 클릭된 카드가 내가 이미 보고 있던 사람의 카드인지 확인!
                 const isSamePlayer = this.selectedPlayerData?.id === selectedPlayer.id;
-
                 this.selectedPlayerData = selectedPlayer;
                 const historyCount = selectedPlayer.history?.length ?? 0;
 
@@ -695,16 +647,19 @@ class AppController {
                     this.goToReplayStep(historyCount);
                 }
                 else {
-                    // 화면 갱신으로 인해 '같은 사람'이 자동 클릭된 경우 -> 재생 유지!
-                    this.ui.setupReplaySlider(historyCount, (step) => {
-                        this.pauseReplay();
-                        this.goToReplayStep(step);
-                    });
-                    // 비디오를 정지하지 않고, 현재 재생 중이던 위치(step)의 화면만 다시 그려줌
-                    this.goToReplayStep(this.replayStep);
+                    // 🚀 패널 증발 방지: 새로고침 되어도 리플레이 패널과 제목을 보이게 복구!
+                    this.ui.replayContent.style.display = 'flex';
+                    if (this.ui.replayTitle) {
+                        this.ui.replayTitle.innerText = `[ ${selectedPlayer.nickname || selectedPlayer.id} ] 님의 플레이`;
+                    }
+                    // 데이터가 늘어났다면 슬라이더 길이만 연장
+                    if (this.ui.replaySlider && parseInt(this.ui.replaySlider.max) !== historyCount) {
+                        this.ui.replaySlider.max = historyCount;
+                    }
                 }
             });
 
+            // 선택 유지 로직
             let playerToSelect = activePlayers.find(p => p.id === prevSelectedId);
             if (!playerToSelect) {
                 playerToSelect = activePlayers.find(p => p.id === this.roomManager.myId);
@@ -726,7 +681,6 @@ class AppController {
             const host = this.roomManager.players.find(p => p.isHost);
             if (host) this.ui.updateForceStartUI(!!host.isForceStartOn);
 
-            // 🚀 [추가] 누군가 들어오거나 상태가 바뀔 때마다 상태 메시지 UI를 갱신합니다.
             const isAnyPlaying = this.roomManager.players.some(p => p.isPlaying);
             this.ui.updateRoomStatusText(this.roomManager.isHost, isAnyPlaying);
         }
@@ -746,7 +700,7 @@ class AppController {
 
     // [내부] 방 진입 후 공통 UI 세팅
     _enterRoom(code, isHost) {
-        this.currentScreen = 'room'; // 🚀 [추가]
+        this.currentScreen = 'room'; 
         this.ui.setupButtons(isHost);
         this.ui.updateRoomView(code);
         this.ui.initNicknameInput(this.roomManager.myNickname);
@@ -754,18 +708,17 @@ class AppController {
         this.ui.switchScreen('screen-room');
     }
 
-    // [내부] 방장 자격으로 방 개설 공통 로직 (방 생성 / 모달 "방 생성" 공유)
+    // [내부] 방장 자격으로 방 개설 공통 로직
     async _createRoomAsHost(code) {
         await this.network.connectToRoom(code, {
             id:       this.roomManager.myId,
             nickname: this.roomManager.myNickname,
             isHost:   true,
-            // 🚀 [추가] 저장된 설정을 초기 상태에 포함
             isForceStartOn: this.isForceStartPersistent
         });
         this.roomManager.setRoomState(code, true);
         this.roomManager.addPlayer(this.roomManager.myId, true);
-        await this.network.registerRoomToDB(code); // 빠른 입장 목록에 등록
+        await this.network.registerRoomToDB(code); 
         this._enterRoom(code, true);
     }
 
@@ -793,8 +746,6 @@ class AppController {
     // [흐름] 방 생성
     async handleCreateRoom() {
         const btn = document.getElementById('btn-create-room');
-        
-        // 🚀 1. 버튼을 누르는 즉시 시각적 피드백 제공 (중복 클릭 방지)
         btn.innerText = '방 생성 중... ⏳';
         btn.disabled = true;
 
@@ -802,23 +753,19 @@ class AppController {
         try {
             await this._createRoomAsHost(newCode);
         } catch (error) {
-            // 🚀 2. 무한 대기 대신, 아까 network.js에서 던진 에러를 받아서 띄워줍니다!
             alert(`방 생성에 실패했습니다. (원인: ${error.message})\n잠시 후 다시 시도해주세요.`);
         } finally {
-            // 🚀 3. 성공하든 실패하든 처리가 끝나면 버튼 상태를 원래대로 복구
             btn.innerText = '방 생성';
             btn.disabled = false;
         }
     }
 
-    // [흐름] 방 접속 — 없는 방이면 모달로 선택지 제공
+    // [흐름] 방 접속
     async handleJoinRoom() {
         const code = this.ui.getInputValue();
         if (code.length !== 4) { alert('4자리 방 코드를 정확히 입력해주세요.'); return; }
         
         const btn = document.getElementById('btn-join-room');
-        
-        // 🚀 버튼 클릭 즉시 피드백
         btn.innerText = '접속 중... ⏳';
         btn.disabled = true;
 
@@ -836,25 +783,21 @@ class AppController {
             this.roomManager.clearRoomState();
 
             if (error.message === 'ROOM_NOT_FOUND') {
-                
-                // 🚀 [추가] 유령 방 청소기: 이 방은 DB에만 살아있는 죽은 방이므로 직접 삭제해 줍니다!
                 this.network.unregisterRoomFromDB(code);
-
                 this.ui.showRoomNotFoundModal(
                     async () => {
                         try {
-                            await this._createRoomAsHost(code); // DB 등록 포함한 공통 로직 재사용
+                            await this._createRoomAsHost(code); 
                         } catch {
                             alert('방 생성에 실패했습니다. 다시 시도해주세요.');
                         }
                     },
-                    () => {} // 나가기 — 모달만 닫고 로비 유지
+                    () => {} 
                 );
             } else {
                 alert('방 접속에 실패했습니다. 다시 시도해주세요.');
             }
         } finally {
-            // 🚀 상태 복구
             btn.innerText = '방 접속';
             btn.disabled = false;
         }
@@ -898,10 +841,8 @@ class AppController {
         const isForceStart = host?.isForceStartOn ?? false;
         const guests       = this.roomManager.players.filter(p => !p.isHost);
 
-        // 게스트가 없으면(방장 혼자) 항상 시작 가능
         if (guests.length === 0) { this._doStartGame(); return; }
 
-        // 게스트가 있을 때: 강제 시작 또는 전원 준비 필요
         if (!isForceStart && !guests.every(p => p.isReady)) {
             alert('모든 참가자가 준비를 완료해야 시작할 수 있습니다.\n또는 [강제 시작] 설정을 켜주세요.');
             return;
@@ -912,7 +853,6 @@ class AppController {
 
     // [내부] 실제 게임 시작 신호 전파 및 로컬 실행
     _doStartGame() {
-        // 모집이 끝났으므로 DB에서 방 코드를 내림
         if (this.roomManager.isHost) {
             this.network.unregisterRoomFromDB(this.roomManager.currentRoomCode);
         }
@@ -924,11 +864,11 @@ class AppController {
 
     // [흐름] 게임 초기화 및 화면 전환
     startGameProcess(seed) {
-        this.currentScreen = 'game'; // 🚀 [추가]
+        this.currentScreen = 'game'; 
         this.isGameRunning   = true;
         this.currentSeed     = seed;
         this.myActionHistory = [];
-        this.lastSyncedScore = 0; // 🚀 [추가] 게임 시작 시 초기화
+        this.lastSyncedScore = 0; 
 
         this.board      = new Board(GameConfig);
         this.board.initializeWithSeed(seed);
@@ -949,11 +889,8 @@ class AppController {
         const timeLeft = this.scoreTimer.tick();
         this.ui.updateStats(timeLeft, this.scoreTimer.score);
 
-        // 🚀 서버 과부하 방지: 점수가 바뀌었을 때만 1초에 1번 서버로 동기화
         if (this.lastSyncedScore !== this.scoreTimer.score) {
             this.lastSyncedScore = this.scoreTimer.score;
-            
-            // 🚀 [수정] 무거운 updateMyState(상태망) 대신 빠르고 가벼운 무전기(방송망)로 교체!
             this.network.broadcastScore(this.roomManager.myId, this.scoreTimer.score);
         }
 
@@ -978,17 +915,13 @@ class AppController {
             this.soundFX.playPop();
         }
 
-        // 성공/실패 모두 점수·기록 갱신
         this.ui.updateStats(this.scoreTimer.time, this.scoreTimer.score);
-
-        // 🚀 [수정] 데이터 압축: 긴 객체 대신 짧은 배열로 저장하여 서버 전송 용량 최적화
         this.myActionHistory.push([this.scoreTimer.time, index, this.scoreTimer.score]);
 
-        // 🚀 네트워크 전송(updateMyState) 코드는 삭제하고, 내 화면의 랭킹판만 즉시 갱신합니다.
         const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
         if (me) {
             me.score = this.scoreTimer.score;
-            this._refreshPlayerView(); // 내 점수는 0.1초의 딜레이도 없이 랭킹판에 즉시 반영!
+            this._refreshPlayerView(); 
         }
     }
 
@@ -1001,26 +934,29 @@ class AppController {
         this.board      = null;
         this.scoreTimer = null;
 
-        // 통신 지연이나 누락에 대비해, 내 로컬 객체에 결과를 확정 지어둡니다.
         const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
         if (me) {
             me.score = finalScore;
             me.history = this.myActionHistory; 
         }
 
-        // 🚀 1. 상태망(Presence)에는 가벼운 텍스트 상태만 유지하도록 올립니다. 
-        // 🚨(history 삭제! 이게 통신망을 끊어먹던 주범입니다)🚨
+        // 🚀 1. 스냅샷 생성: 게임 종료 시점의 플레이어 목록 고정!
+        this.resultParticipants = this.roomManager.players
+            .filter(p => p.isPlaying)
+            .map(p => ({ ...p }));
+
+        // 🚀 2. 상태망(Presence) 통신: history는 제외하고 결과창 유지를 위해 isPlaying은 true로!
         this.network.updateMyState({
             id:        this.roomManager.myId,
             nickname:  this.roomManager.myNickname,
             isHost:    this.roomManager.isHost,
             isReady:   false,
-            isPlaying: true, 
+            isPlaying: true, // 🚨 결과창에 남으려면 반드시 true!
             score:     finalScore,
             updatedAt: Date.now(),
         });
 
-        // 🚀 2. 덩치가 큰 리플레이 데이터(history)는 용량 제한이 널널한 무전기(Broadcast)로 별도 발송!
+        // 🚀 3. 무전기(Broadcast) 통신: 거대한 리플레이 데이터는 따로 전송
         this.network.broadcastHistory(this.roomManager.myId, finalScore, this.myActionHistory);
 
         this.ui.switchScreen('screen-result');
@@ -1045,13 +981,11 @@ class AppController {
             const action = actions[i];
             let idx, score, time;
 
-            // 🚀 [수정] 압축된 배열 포맷 해독 지원
             if (Array.isArray(action)) {
                 time = action[0];
                 idx = action[1];
                 score = action[2];
             } else {
-                // (기존 포맷 하위 호환성)
                 time = action.timeLeft;
                 idx = action.indexClicked;
                 score = action.currentScore;
@@ -1100,7 +1034,6 @@ class AppController {
         this.currentScreen = 'room';
         this.pauseReplay();
 
-        // 🚀 [추가] 대기실로 돌아갈 때 비로소 나간 사람들의 데이터를 배열에서 청소합니다.
         this.roomManager.cleanLeftPlayers();
 
         this.network.updateMyState({
