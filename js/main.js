@@ -364,7 +364,7 @@ class LobbyUI {
     }
 
     bindBoardClick(callback) {
-        this.gameBoard.addEventListener('click', (e) => {
+        this.gameBoard.addEventListener('pointerdown', (e) => {
             const cell = e.target.closest('[data-index]');
             if (cell) callback(+cell.dataset.index);
         });
