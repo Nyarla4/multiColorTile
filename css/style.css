@@ -789,43 +789,48 @@ body.light-mode .how-to-badge:hover {
         transform: translateX(18px);
     }
 
-/* 🚀 1. 테마 선택란 복구: 닉네임과 테마 설정을 세로로 포개서 화면 밖 밀림 방지 */
     .settings-section {
         display: flex !important;
         flex-direction: column !important;
         gap: 15px !important;
+        width: 100% !important;
+        box-sizing: border-box !important; /* 패딩이 너비를 뚫고 나가지 않게 가둠 */
     }
 
     .setting-item {
         width: 100% !important;
-        margin: 0 !important; /* 충돌 방지를 위해 기존 margin 초기화 */
+        margin: 0 !important;
+        box-sizing: border-box !important;
     }
 
-    /* 🚀 2. 하단 액션바: 줄바꿈 허용 및 '나가기'와 '시작' 버튼 사이 여백(gap) 추가 */
+    #select-theme, #input-nickname {
+        box-sizing: border-box !important;
+    }
+
+    /* 🚀 2. 하단 액션바: 버튼 간 여백(gap) 유지 */
     .bottom-action-bar {
         flex-wrap: wrap !important;
-        gap: 15px !important; /* 버튼이 딱 붙지 않도록 15px 띄움 */
+        gap: 10px !important;
     }
 
-    /* 🚀 상태 텍스트: 맨 윗줄로 올려서 가로 100% 사용 */
+    /* 상태 텍스트: 맨 윗줄 100% 차지 */
     #room-status {
         width: 100% !important;
         flex-basis: 100% !important; 
         order: -1 !important; 
-        margin-bottom: 0 !important; /* 액션바에 gap이 있으므로 margin 제거 */
+        margin-bottom: 0 !important; 
         text-align: center !important;
         line-height: 1.4;
     }
 
-    /* 🚀 나가기 버튼: 남은 공간의 절반 차지 */
+    /* 🚀 3. 버튼 크기 언밸런스 조정 (나가기 작게, 시작 크게) */
     #btn-leave-room {
-        flex: 1 !important;
+        flex: 1 !important; /* 비율 1 차지 */
         white-space: nowrap !important;
     }
 
-    /* 🚀 우측 준비/시작 버튼 그룹: 남은 공간의 절반 차지 */
     .bottom-action-bar > div:last-child {
-        flex: 1 !important;
+        flex: 2.5 !important; /* 비율 2.5 차지 (나가기보다 2.5배 큼) */
         width: 100%;
         display: flex;
         gap: 10px !important;
