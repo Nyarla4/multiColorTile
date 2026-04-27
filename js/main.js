@@ -488,6 +488,8 @@ class AppController {
         this.replayStep         = 0;
         this.lastSyncedScore    = -1; 
 
+        this.replayCache = new Map(); // step → { grid, time, score }
+
         // 저장된 강제 시작 설정 불러오기 (기본값: false)
         this.isForceStartPersistent = localStorage.getItem('tileclear_force_start') === 'true';
 
@@ -638,6 +640,7 @@ class AppController {
                 const historyCount = selectedPlayer.history?.length ?? 0;
 
                 if (!isSamePlayer) {
+                    this.replayCache = new Map();
                     this.pauseReplay();
                     this.ui.setupReplayUI(selectedPlayer, this.currentSeed);
                     this.ui.setupReplaySlider(historyCount, (step) => {
@@ -970,32 +973,50 @@ class AppController {
         this.replayStep = step;
         this.ui.updateReplaySlider(step);
 
-        const replayBoard = new Board(GameConfig);
-        replayBoard.initializeWithSeed(this.currentSeed);
+        // 캐시 히트
+        if (this.replayCache.has(step)) {
+            const { grid, time, score } = this.replayCache.get(step);
+            this.ui.redrawReplayBoard(grid);
+            this.ui.updateReplayStats(time, score);
+            return;
+        }
+
+        // 가장 가까운 캐시 지점부터 계산
+        let startStep = 0;
+        let replayBoard = null;
+        for (let s = step - 1; s >= 0; s--) {
+            if (this.replayCache.has(s)) {
+                startStep = s;
+                const cached = this.replayCache.get(s);
+                replayBoard = new Board(GameConfig);
+                replayBoard.grid = [...cached.grid];
+                break;
+            }
+        }
+        if (!replayBoard) {
+            replayBoard = new Board(GameConfig);
+            replayBoard.initializeWithSeed(this.currentSeed);
+        }
 
         const actions = this.selectedPlayerData.history || [];
-        let currentScore = 0;
-        let currentTime  = GameConfig.timeLimit;
+        let currentScore = 0, currentTime = GameConfig.timeLimit;
 
-        for (let i = 0; i < step; i++) {
+        for (let i = startStep; i < step; i++) {
             const action = actions[i];
-            let idx, score, time;
-
-            if (Array.isArray(action)) {
-                time = action[0];
-                idx = action[1];
-                score = action[2];
-            } else {
-                time = action.timeLeft;
-                idx = action.indexClicked;
-                score = action.currentScore;
-            }
-
-            const targetTiles = replayBoard.getMatchedTilesToDestroy(idx);
-            targetTiles.forEach(id => { replayBoard.grid[id] = null; });
+            const [time, idx, score] = Array.isArray(action)
+                ? [action[0], action[1], action[2]]
+                : [action.timeLeft, action.indexClicked, action.currentScore];
+            replayBoard.getMatchedTilesToDestroy(idx)
+                .forEach(id => { replayBoard.grid[id] = null; });
             currentScore = score;
-            currentTime  = time;
+            currentTime = time;
         }
+
+        this.replayCache.set(step, {
+            grid: [...replayBoard.grid],
+            time: currentTime,
+            score: currentScore,
+        });
 
         this.ui.redrawReplayBoard(replayBoard.grid);
         this.ui.updateReplayStats(currentTime, currentScore);

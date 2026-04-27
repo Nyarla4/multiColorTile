@@ -9,6 +9,16 @@ const server = http.createServer((req, res) => {
         res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
         res.end('소켓 서버가 정상적으로 켜져 있습니다! 🚀');
     }
+    else if (req.method === 'GET' && req.url === '/rooms') { // 빠른 입장 처리
+        const activeRooms = Object.keys(rooms).filter(
+            code => Object.keys(rooms[code]).length > 0
+        );
+        res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'   // ← 추가
+        });
+        res.end(JSON.stringify({ rooms: activeRooms }));
+    }
 });
 
 // 2. CORS 설정: 허용할 도메인 목록
@@ -40,6 +50,12 @@ io.on("connection", (socket) => {
 
     // 1. 방 접속 및 상태망(Presence) 동기화
     socket.on("join_room", ({ roomCode, playerData }, callback) => {
+        const isJoiningAsGuest = !playerData.isHost; //게스트인지 여부
+
+        if(isJoiningAsGuest && !rooms[roomCode]) { //게스트이고 방이 없는 경우
+            return callback({ success: false, reason: 'ROOM_NOT_FOUND' });
+        }
+
         socket.join(roomCode);
         socket.roomCode = roomCode;
         socket.playerId = playerData.id;
@@ -70,19 +86,8 @@ io.on("connection", (socket) => {
         socket.to(socket.roomCode).emit(event, payload);
     });
 
-    // 4. 빠른 입장 (DB 쿼리 대체)
-    socket.on("get_random_room", (callback) => {
-        // 사람이 1명이라도 있는 활성화된 방 목록 추출
-        const activeRooms = Object.keys(rooms).filter(code => Object.keys(rooms[code]).length > 0);
-        
-        if (activeRooms.length === 0) {
-            return callback({ roomCode: null });
-        }
-        
-        const randomCode = activeRooms[Math.floor(Math.random() * activeRooms.length)];
-        callback({ roomCode: randomCode });
-    });
-
+    // 4. 빠른 입장 => getRandomRoomFromDB가 HTTP fetch으로 바뀌었음
+    
     // 5. 🚀 연결 끊김 (유령 방 완벽 청소기)
     socket.on("disconnect", () => {
         const roomCode = socket.roomCode;

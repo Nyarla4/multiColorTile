@@ -97,6 +97,7 @@ export class NetworkClient {
     constructor() {
         this.socket               = null;
         this.myLastData           = null;
+        this.myLastRoomCode       = null;
         this.onSyncState          = null;
         this.onGameStart          = null;
         this.onForceNicknameReset = null;
@@ -130,6 +131,15 @@ export class NetworkClient {
         this.socket.on("sync_history", (p) => {
             if (this.onSyncHistory) this.onSyncHistory(p.id, p.score, p.history);
         });
+        this.socket.io.on("reconnect", () => {
+            console.log('[Network] 재연결 성공, 방 재입장 시도');
+            if (this.myLastData && this.myLastRoomCode) {
+                this.socket.emit("join_room", {
+                    roomCode: this.myLastRoomCode,
+                    playerData: this.myLastData
+                }, () => { });
+            }
+        });
     }
 
     connectToRoom(roomCode, myData) {
@@ -139,12 +149,18 @@ export class NetworkClient {
                 this.socket = null; 
             }
 
-            this.socket = window.io(SERVER_URL);
+            this.myLastRoomCode = roomCode;           // 재연결 시 재입장에 필요
             this.myLastData = myData;
+            this.socket = window.io(SERVER_URL, {
+                reconnection: true,
+                reconnectionAttempts: 5,
+                reconnectionDelay: 2000,
+            });
 
             this._setupListeners();
 
-            this.socket.on("connect", () => {
+            // 최초 1회만 실행
+            this.socket.once("connect", () => {
                 this.socket.emit("join_room", { roomCode, playerData: myData }, (res) => {
                     if (res.success) {
                         console.log(`[Network] ${roomCode} 방 접속 완료`);
@@ -152,12 +168,13 @@ export class NetworkClient {
                     } else {
                         this.socket.disconnect();
                         this.socket = null;
-                        reject(new Error('JOIN_FAILED'));
+                        reject(new Error(res.reason || 'JOIN_FAILED'));  // reason 전파
                     }
                 });
             });
 
-            this.socket.on("connect_error", () => {
+            // 최초 1회만 실행
+            this.socket.once("connect_error", () => {
                 this.socket.disconnect();
                 this.socket = null;
                 reject(new Error('TIMED_OUT'));
@@ -193,40 +210,14 @@ export class NetworkClient {
     async unregisterRoomFromDB(roomCode) { return; }
     unregisterRoomFromDBOnUnload(roomCode) { return; }
 
-    getRandomRoomFromDB() {
-        return new Promise((resolve) => {
-            const tempSocket = window.io(SERVER_URL);
-            let settled = false;
-
-            tempSocket.on("connect_error", () => {
-                if (settled) return;
-                settled = true;
-                
-                tempSocket.disconnect();
-                console.error("[Network] 랜덤 방 찾기 실패: 서버 응답 없음");
-                resolve(null); 
-            });
-
-            tempSocket.on("connect", () => {
-                // 🚀 [추가] 서버가 연결은 됐는데 응답을 주지 않고 기절하는 경우 (무한 대기 방지)
-                const timer = setTimeout(() => {
-                    if (settled) return;
-                    settled = true;
-                    
-                    tempSocket.disconnect();
-                    console.error("[Network] 랜덤 방 찾기 실패: 서버 응답 시간 초과 (5초)");
-                    resolve(null);
-                }, 5000); 
-
-                tempSocket.emit("get_random_room", (res) => {
-                    clearTimeout(timer); // 🚀 정상 응답 시 타이머 해제
-                    if (settled) return;
-                    settled = true;
-                    
-                    tempSocket.disconnect();
-                    resolve(res.roomCode);
-                });
-            });
-        });
+    async getRandomRoomFromDB() { // HTTP fetch로 수정
+        try {
+            const res = await fetch(`${SERVER_URL}/rooms`);
+            const { rooms } = await res.json();
+            if (!rooms || rooms.length === 0) return null;
+            return rooms[Math.floor(Math.random() * rooms.length)];
+        } catch {
+            return null;
+        }
     }
 }
