@@ -510,6 +510,7 @@ class AppController {
         document.getElementById('btn-save-nickname').addEventListener('click',   () => this.handleSaveNickname());
         document.getElementById('input-nickname')   .addEventListener('keydown', (e) => { if (e.key === 'Enter') this.handleSaveNickname(); });
         document.getElementById('btn-quick-join')  ?.addEventListener('click',   () => this.handleQuickJoin());
+        document.getElementById('btn-reset-all')   ?.addEventListener('click', () => this.handleResetAll());
 
         this.ui.bindBoardClick((index) => this.handleCellClick(index));
         this.ui.bindToggleEvents();
@@ -621,6 +622,8 @@ class AppController {
             if (rp) { rp.score = score; rp.history = history; }
             this._refreshPlayerView();
         };
+
+        this.network.onResetAll = (seed) => this.applyResetAll(seed);
     }
 
     // [내부] 게임 중/대기 중 상태에 따라 적절한 뷰 갱신
@@ -883,6 +886,8 @@ class AppController {
         this.ui.updateStats(this.scoreTimer.time, this.scoreTimer.score);
         this.ui.initBoard(this.board.grid);
         this.ui.switchScreen('screen-game');
+        const hostControls = document.getElementById('host-controls');
+        if (hostControls) hostControls.style.display = this.roomManager.isHost ? 'flex' : 'none';
         this.scoreTimer.start(() => this.gameLoop());
     }
 
@@ -1048,6 +1053,36 @@ class AppController {
             this.replayInterval = null;
         }
         this.ui.btnPlayReplay.innerText = '▶ 재생 시작';
+    }
+
+    // [내부] 전체 초기화 실제 적용 — 방장/게스트 공통
+    applyResetAll(seed) {
+        if (!this.board || !this.scoreTimer || !this.isGameRunning) return;
+
+        // 점수
+        this.scoreTimer.score = 0;
+        this.lastSyncedScore = 0;
+
+        // 타이머
+        this.scoreTimer.resetTime();
+
+        // 판
+        this.currentSeed = seed;
+        this.myActionHistory = [];
+        this.board.initializeWithSeed(seed);
+        this.ui.initBoard(this.board.grid);
+
+        this.ui.updateStats(this.scoreTimer.time, this.scoreTimer.score);
+    }
+
+    // [흐름] 방장: 전체 초기화 confirm 후 전파
+    handleResetAll() {
+        if (!this.roomManager.isHost) return;
+        if (!confirm('시간·점수·판을 모두 초기화합니다.\n키라이십니까?')) return;
+
+        const seed = generateSeed(GameConfig);
+        this.network.broadcastResetAll(seed);
+        this.applyResetAll(seed);
     }
 
     // [흐름] 결과 화면 → 대기실 복귀

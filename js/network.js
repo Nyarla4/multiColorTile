@@ -105,6 +105,7 @@ export class NetworkClient {
         this.onPlayerKicked       = null;
         this.onSyncScore          = null; 
         this.onSyncHistory        = null;
+        this.onResetAll           = null;
     }
 
     _setupListeners() {
@@ -130,6 +131,9 @@ export class NetworkClient {
         });
         this.socket.on("sync_history", (p) => {
             if (this.onSyncHistory) this.onSyncHistory(p.id, p.score, p.history);
+        });
+        this.socket.on("reset_all", (p) => {
+            if (this.onResetAll) this.onResetAll(p.seed);
         });
         this.socket.io.on("reconnect", () => {
             console.log('[Network] 재연결 성공, 방 재입장 시도');
@@ -198,6 +202,8 @@ export class NetworkClient {
     broadcastKickPlayer(targetId)         { this._broadcast("player_kicked", { targetId }); }
     broadcastScore(id, score)             { this._broadcast("sync_score", { id, score }); }
     broadcastHistory(id, score, history)  { this._broadcast("sync_history", { id, score, history }); }
+
+    broadcastResetAll(seed) { this._broadcast("reset_all", { seed }); }
 
     disconnect() {
         if (this.socket) {

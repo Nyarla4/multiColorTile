@@ -186,6 +186,11 @@ export class ScoreTimer {
         this.intervalId = null;
     }
 
+    resetTimer() {
+        this.endTime = Date.now() + (this.timeLimit * 1000);
+        this._updateTime();
+    }
+
     addScore(amount) { this.score += amount; }
 
     tick() {
