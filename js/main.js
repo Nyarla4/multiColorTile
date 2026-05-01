@@ -1074,12 +1074,12 @@ class AppController {
 
         this.ui.updateStats(this.scoreTimer.time, this.scoreTimer.score);
 
-        // ↓ 추가: 내 점수를 0으로 갱신하고 리더보드 업데이트
-        const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
-        if (me) {
-            me.score = 0;
-            this._refreshPlayerView();
-        }
+        // ↓ 수정: 나 포함 모든 플레이어 점수를 로컬에서 즉시 0으로 초기화
+        this.roomManager.players.forEach(p => { p.score = 0; });
+        this._refreshPlayerView();
+
+        // ↓ 추가: 내 점수 0을 다른 클라이언트에게 즉시 전파
+        this.network.broadcastScore(this.roomManager.myId, 0);
     }
 
     // [흐름] 방장: 전체 초기화 confirm 후 전파
