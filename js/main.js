@@ -1060,11 +1060,11 @@ class AppController {
         if (!this.board || !this.scoreTimer || !this.isGameRunning) return;
 
         // 점수
-        this.scoreTimer.score = 0;
+        this.scoreTimer.resetScore();      // ← 메서드 사용
         this.lastSyncedScore = 0;
 
         // 타이머
-        this.scoreTimer.resetTime();
+        this.scoreTimer.resetTimer();      // ← resetTime → resetTimer (game.js 메서드명과 일치)
 
         // 판
         this.currentSeed = seed;
@@ -1073,6 +1073,13 @@ class AppController {
         this.ui.initBoard(this.board.grid);
 
         this.ui.updateStats(this.scoreTimer.time, this.scoreTimer.score);
+
+        // ↓ 추가: 내 점수를 0으로 갱신하고 리더보드 업데이트
+        const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
+        if (me) {
+            me.score = 0;
+            this._refreshPlayerView();
+        }
     }
 
     // [흐름] 방장: 전체 초기화 confirm 후 전파

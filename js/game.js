@@ -191,6 +191,10 @@ export class ScoreTimer {
         this._updateTime();
     }
 
+    resetScore() {
+        this.score = 0;
+    }
+
     addScore(amount) { this.score += amount; }
 
     tick() {
