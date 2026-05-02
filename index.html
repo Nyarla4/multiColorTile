@@ -19,7 +19,7 @@
         <div class="panel">
             <h1>컬러 타일 멀티</h1>
             <p class="text-muted">
-                하던 사람이 없으면 서버 켜지는데 시간 좀 걸릴 수 잇음...<br/>현재 중도 초기화에 버그 발생!! 밖이라 상세 수정 불가능...
+                하던 사람이 없으면 서버 켜지는데 시간 좀 걸릴 수 잇음...
             </p>
             <br>
             <button id="btn-create-room" class="btn-secondary" style="width: 100%; padding: 15px;">방 생성</button>
@@ -42,7 +42,7 @@
         <div class="modal-box" style="max-width: 400px; text-align: left;">
             <h2 style="margin-bottom: 20px; text-align: center;">업데이트 로그</h2>
             <div class="changelog-content">
-    
+
                 <h4>v2.0.0</h4>
                 <ul>
                     <li><strong>서버를 supabase에서 socket.io+onrender로 수정</strong></li>
@@ -63,12 +63,16 @@
                 <ul>
                     <li>초기화 시 다른사람 점수 초기화 안되는 현상 수정</li>
                 </ul>
-    
+                <h4>-버전 올리기 쪼끔 그럼-</h4>
+                <ul>
+                    <li>2.3.1 ~ 2.4.1: 판갈기 알림 창에서 모달로 변경</li>
+                </ul>
+
                 <details style="margin-top: 20px; padding-top: 15px; border-top: 1px dashed var(--border-color, #ccc);">
                     <summary style="cursor: pointer; font-weight: bold; outline: none; margin-bottom: 10px;">
                         v1.x.x 이전 로그 보기 (v1.0.0 ~ v1.13.4)
                     </summary>
-    
+
                     <div style="margin-top: 10px; opacity: 0.8; font-size: 0.95em;">
                         <h4>v1.0.0</h4>
                         <ul>
@@ -160,7 +164,7 @@
                         </ul>
                     </div>
                 </details>
-    
+
             </div>
             <div class="modal-buttons" style="margin-top: 20px;">
                 <button id="modal-btn-close-changelog" class="btn-primary" style="width: 100%;">닫기</button>
@@ -179,7 +183,17 @@
         </div>
     </div>
 
-<div id="modal-how-to" class="modal-overlay" style="display: none;">
+    <div id="modal-reset-confirm" class="modal-overlay" style="display: none;">
+        <div class="modal-box">
+            <p class="modal-message">시간·점수·판을 모두 초기화합니다.<br>키라이십니까?</p>
+            <div class="modal-buttons">
+                <button id="modal-btn-reset-ok" class="btn-danger">초기화</button>
+                <button id="modal-btn-reset-cancel" class="btn-primary">취소</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-how-to" class="modal-overlay" style="display: none;">
         <div class="modal-box" style="max-width: 450px; text-align: left;">
             <h2 style="margin-bottom: 20px; text-align: center;">🎮 게임 방법</h2>
             <div class="how-to-content" style="line-height: 1.7; font-size: 0.95rem;">
@@ -205,9 +219,10 @@
     <!-- 대기실 화면 -->
     <div id="screen-room" class="screen">
         <div class="room-dashboard">
-            
+
             <div class="dashboard-header">
-                <div class="info-card" style="display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 10px;">
+                <div class="info-card"
+                    style="display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 10px;">
                     <strong style="font-size: 1.1rem; color: var(--text-main);">⚙️ 방 설정</strong>
                     <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
                         <span class="text-muted" style="font-size: 0.95rem; font-weight: bold;">강제 시작 (준비 무시)</span>
@@ -217,13 +232,18 @@
                         </label>
                     </div>
                 </div>
-                
-                <div class="info-card" style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+
+                <div class="info-card"
+                    style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
                     <div style="display: flex; flex-direction: column; justify-content: center; text-align: left;">
-                        <span class="text-muted" style="font-size: 0.85rem; font-weight: bold; letter-spacing: 1px;">ROOM CODE</span>
-                        <h2 id="room-title" style="margin: 5px 0 0 0; font-size: 2.5rem; color: var(--highlight); letter-spacing: 5px;">----</h2>
+                        <span class="text-muted"
+                            style="font-size: 0.85rem; font-weight: bold; letter-spacing: 1px;">ROOM CODE</span>
+                        <h2 id="room-title"
+                            style="margin: 5px 0 0 0; font-size: 2.5rem; color: var(--highlight); letter-spacing: 5px;">
+                            ----</h2>
                     </div>
-                    <button id="btn-copy-link" class="btn-secondary" style="padding: 12px 15px; font-size: 1rem; border-radius: 8px;">
+                    <button id="btn-copy-link" class="btn-secondary"
+                        style="padding: 12px 15px; font-size: 1rem; border-radius: 8px;">
                         🔗 링크 복사
                     </button>
                 </div>
@@ -233,33 +253,39 @@
                 <div class="setting-item">
                     <label>👤 닉네임 설정</label>
                     <div class="form-group" style="margin: 0; justify-content: flex-start;">
-                        <input type="text" id="input-nickname" maxlength="10" autocomplete="off" placeholder="닉네임 변경" style="flex: 1;">
+                        <input type="text" id="input-nickname" maxlength="10" autocomplete="off" placeholder="닉네임 변경"
+                            style="flex: 1;">
                         <button id="btn-save-nickname" class="btn-primary" style="white-space: nowrap;">저장</button>
                     </div>
-                    <p id="nickname-status" class="text-muted" style="margin: 5px 0 0 0; min-height: 15px; font-size: 12px;"></p>
+                    <p id="nickname-status" class="text-muted"
+                        style="margin: 5px 0 0 0; min-height: 15px; font-size: 12px;"></p>
                 </div>
 
                 <div class="setting-item" id="theme-selector-container">
                     <label>🎨 내 타일 테마 설정</label>
-                    <select id="select-theme" style="width: 100%; padding: 12px; border-radius: 6px; background-color: var(--bg-canvas); color: var(--text-main); border: 2px solid var(--bg-canvas); outline: none; cursor: pointer; font-size: 16px;">
-                        </select>
+                    <select id="select-theme"
+                        style="width: 100%; padding: 12px; border-radius: 6px; background-color: var(--bg-canvas); color: var(--text-main); border: 2px solid var(--bg-canvas); outline: none; cursor: pointer; font-size: 16px;">
+                    </select>
                 </div>
             </div>
 
             <div class="player-section">
                 <h3 style="margin: 0 0 10px 5px; text-align: left;">
                     접속자 목록
-                    <span id="player-count-display" style="color: var(--highlight); font-size: 1.1rem; margin-left: 5px;">(인수표시)</span>
+                    <span id="player-count-display"
+                        style="color: var(--highlight); font-size: 1.1rem; margin-left: 5px;">(인수표시)</span>
                 </h3>
                 <ul id="player-list" class="list-box wide-list"></ul>
             </div>
 
             <div class="bottom-action-bar">
-                <button id="btn-leave-room" style="background-color: transparent; color: var(--text-muted); border: 1px solid var(--text-muted);">나가기</button>
+                <button id="btn-leave-room"
+                    style="background-color: transparent; color: var(--text-muted); border: 1px solid var(--text-muted);">나가기</button>
                 <div id="room-status" class="text-muted" style="font-weight: bold;">상태 메시지</div>
                 <div style="display: flex; gap: 10px;">
                     <button id="btn-ready" class="btn-secondary" style="width: 180px; font-size: 1.1rem;">준비</button>
-                    <button id="btn-start" class="btn-secondary" style="display: none; width: 180px; font-size: 1.1rem;">게임 시작</button>
+                    <button id="btn-start" class="btn-secondary"
+                        style="display: none; width: 180px; font-size: 1.1rem;">게임 시작</button>
                 </div>
             </div>
 
@@ -269,15 +295,15 @@
     <!-- 게임 화면 -->
     <div id="screen-game" class="screen">
         <div class="game-layout">
-    
+
             <div id="leaderboard" class="leaderboard-v"></div>
-    
+
             <div class="play-area">
                 <div class="game-info-bar">
                     <div id="ui-time">Time: 120</div>
                     <div id="ui-score">Score: 0</div>
                 </div>
-    
+
                 <div class="toggle-container">
                     <label>
                         <input type="checkbox" id="toggle-emoji">
@@ -286,11 +312,12 @@
                 </div>
                 <div id="host-controls"
                     style="display:none; gap:10px; margin-bottom:10px; width:100%; max-width:710px; justify-content:flex-end;">
-                    <button id="btn-reset-all" class="btn-danger" style="padding:8px 14px; font-size:13px;">🔄 판갈기</button>
+                    <button id="btn-reset-all" class="btn-danger" style="padding:8px 14px; font-size:13px;">🔄
+                        판갈기</button>
                 </div>
                 <div id="game-board"></div>
             </div>
-    
+
         </div>
     </div>
 

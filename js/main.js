@@ -91,6 +91,7 @@ class LobbyUI {
         // 모달
         this.modalRoomNotFound = document.getElementById('modal-room-not-found');
         this.modalChangelog    = document.getElementById('modal-changelog');
+        this.modalResetConfirm = document.getElementById('modal-reset-confirm');
         this.btnVersion        = document.getElementById('btn-version');
         this.btnChangelogClose = document.getElementById('modal-btn-close-changelog');
 
@@ -158,6 +159,25 @@ class LobbyUI {
     hideRoomNotFoundModal() { this.modalRoomNotFound.style.display = 'none'; }
     showChangelog()         { this.modalChangelog.style.display = 'flex'; }
     hideChangelog()         { this.modalChangelog.style.display = 'none'; }
+
+    showResetConfirmModal(onConfirm) {
+        this.modalResetConfirm.style.display = 'flex';
+
+        const btnOk = this.modalResetConfirm.querySelector('#modal-btn-reset-ok');
+        const btnCancel = this.modalResetConfirm.querySelector('#modal-btn-reset-cancel');
+        const freshOk = btnOk.cloneNode(true);
+        const freshCancel = btnCancel.cloneNode(true);
+        btnOk.replaceWith(freshOk);
+        btnCancel.replaceWith(freshCancel);
+
+        freshOk.addEventListener('click', () => {
+            this.modalResetConfirm.style.display = 'none';
+            onConfirm();
+        });
+        freshCancel.addEventListener('click', () => {
+            this.modalResetConfirm.style.display = 'none';
+        });
+    }
 
     switchScreen(screenId) {
         [this.screenLobby, this.screenRoom, this.screenGame, this.screenResult]
@@ -1060,11 +1080,11 @@ class AppController {
         if (!this.board || !this.scoreTimer || !this.isGameRunning) return;
 
         // 점수
-        this.scoreTimer.resetScore();      // ← 메서드 사용
+        this.scoreTimer.resetScore();
         this.lastSyncedScore = 0;
 
         // 타이머
-        this.scoreTimer.resetTimer();      // ← resetTime → resetTimer (game.js 메서드명과 일치)
+        this.scoreTimer.resetTimer();
 
         // 판
         this.currentSeed = seed;
@@ -1074,22 +1094,27 @@ class AppController {
 
         this.ui.updateStats(this.scoreTimer.time, this.scoreTimer.score);
 
-        // ↓ 수정: 나 포함 모든 플레이어 점수를 로컬에서 즉시 0으로 초기화
         this.roomManager.players.forEach(p => { p.score = 0; });
         this._refreshPlayerView();
 
-        // ↓ 추가: 내 점수 0을 다른 클라이언트에게 즉시 전파
         this.network.broadcastScore(this.roomManager.myId, 0);
+
+        // ↓ 추가: 서버 메모리의 내 점수도 0으로 갱신
+        // 없으면 이후 sync_state에서 syncPlayers 보호 로직이 점수를 복원해버림
+        const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
+        if (me) {
+            this.network.updateMyState({ ...me, score: 0, updatedAt: Date.now() });
+        }
     }
 
     // [흐름] 방장: 전체 초기화 confirm 후 전파
     handleResetAll() {
         if (!this.roomManager.isHost) return;
-        if (!confirm('시간·점수·판을 모두 초기화합니다.\n키라이십니까?')) return;
-
-        const seed = generateSeed(GameConfig);
-        this.network.broadcastResetAll(seed);
-        this.applyResetAll(seed);
+        this.ui.showResetConfirmModal(() => {
+            const seed = generateSeed(GameConfig);
+            this.network.broadcastResetAll(seed);
+            this.applyResetAll(seed);
+        });
     }
 
     // [흐름] 결과 화면 → 대기실 복귀
