@@ -961,6 +961,8 @@ class AppController {
         this.scoreTimer?.stop();
         this.board      = null;
         this.scoreTimer = null;
+        if (this.modalResetConfirm.style.display != 'none')
+            this.modalResetConfirm.style.display = 'none';
 
         const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
         if (me) {
