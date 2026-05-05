@@ -900,14 +900,23 @@ class AppController {
         this.board.initializeWithSeed(seed);
         this.scoreTimer = new ScoreTimer(GameConfig);
 
+        this.roomManager.players.forEach(p => {
+            p.score = 0;
+            p.history = [];
+        });
+
         const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
         if (me) this.network.updateMyState({ ...me, score: 0, isReady: false, isPlaying: true, updatedAt: Date.now() });
 
         this.ui.updateStats(this.scoreTimer.time, this.scoreTimer.score);
         this.ui.initBoard(this.board.grid);
         this.ui.switchScreen('screen-game');
+        
         const hostControls = document.getElementById('host-controls');
         if (hostControls) hostControls.style.display = this.roomManager.isHost ? 'flex' : 'none';
+        
+        this._refreshPlayerView();
+
         this.scoreTimer.start(() => this.gameLoop());
     }
 
