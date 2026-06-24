@@ -1,7 +1,7 @@
 // 🚀 1. 서버 URL 동적 세팅 (로컬 vs 배포)
-const SERVER_URL = window.location.hostname === 'localhost' 
-    ? 'http://localhost:3000' 
-    : 'https://multicolortileserver.onrender.com'
+const SERVER_URL = window.location.origin.includes("vercel")
+    ? 'https://multicolortileserver.onrender.com'
+    : window.location.origin
 
 
 // ============================================================================
