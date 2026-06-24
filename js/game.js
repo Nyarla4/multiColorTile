@@ -131,25 +131,40 @@ export class Board {
 
 // [흐름] 초기 시드 배열 생성 — 색상을 균등하게 분배 후 무작위 배치
 // grid 값: 0 ~ (colorCount-1) 의 숫자 index, 빈 칸은 null
-export function generateSeed(config) {
+export function generateSeed(config, customColorCount = null) {
     const totalCells  = config.cols * config.rows;
     const seed        = Array(totalCells).fill(null);
     const tileIndices = [];
 
     const totalPairs  = config.totalTiles / 2;
-    const colorCount  = config.getColorCount(); // 활성 팔레트 기준으로 색상 수 계산
+    const maxColorCount  = config.getColorCount(); // 활성 팔레트 기준으로 색상 수 계산
+    const colorCount  = customColorCount ? Math.min(customColorCount, maxColorCount) : maxColorCount;
+
+    // 사용할 색상의 인덱스 목록 생성
+    let availableColors = Array.from({length: maxColorCount}, (_, i) => i);
+
+    // 색상 일부만 사용할 경우 무작위로 섞은 뒤 필요한 개수만큼 자르기 (예: 12개 중 10개 선택)
+    if (colorCount < maxColorCount) {
+        for (let i = availableColors.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [availableColors[i], availableColors[j]] = [availableColors[j], availableColors[i]];
+        }
+        availableColors = availableColors.slice(0, colorCount);
+    }
 
     const basePairsPerColor = Math.floor(totalPairs / colorCount);
     const remainingPairs    = totalPairs % colorCount;
 
+    // 선택된 색상(availableColors) 인덱스 안에서만 타일 짝 생성
     for (let c = 0; c < colorCount; c++) {
+        const colorIdx = availableColors[c];
         for (let i = 0; i < basePairsPerColor; i++) {
-            tileIndices.push(c, c);
+            tileIndices.push(colorIdx, colorIdx);
         }
     }
     for (let i = 0; i < remainingPairs; i++) {
-        const c = Math.floor(Math.random() * colorCount);
-        tileIndices.push(c, c);
+        const colorIdx = availableColors[Math.floor(Math.random() * colorCount)];
+        tileIndices.push(colorIdx, colorIdx);
     }
 
     const allIndices = Array.from({ length: totalCells }, (_, i) => i);

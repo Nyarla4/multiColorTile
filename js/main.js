@@ -67,6 +67,7 @@ class LobbyUI {
         this.inputNickname      = document.getElementById('input-nickname');
         this.nicknameStatus     = document.getElementById('nickname-status');
         this.selectTheme        = document.getElementById('select-theme');
+        this.colorCount        = document.getElementById('colorCount');
 
         // 게임
         this.uiTime      = document.getElementById('ui-time');
@@ -480,6 +481,23 @@ class LobbyUI {
             cell.innerText = this.isEmojiMode ? palette.emojis[tileIndex] : '';
         });
     }
+
+    // [흐름] select 엘리먼트 값 동기화
+    updateColorCountUI(count) {
+        if (this.colorCount && this.colorCount.value !== String(count)) {
+            this.colorCount.value = String(count);
+        }
+    }
+
+    // [흐름] 기존 setupButtons 메소드 수정
+    setupButtons(isHost) {
+        this.btnReady.style.display    = isHost ? 'none'  : 'block';
+        this.btnStart.style.display    = isHost ? 'block' : 'none';
+        this.toggleForceStart.disabled = !isHost;
+        
+        // 방장 권한에 따른 활성화/비활성화 추가
+        if (this.colorCount) this.colorCount.disabled = !isHost;
+    }
 }
 
 
@@ -512,6 +530,8 @@ class AppController {
 
         // 저장된 강제 시작 설정 불러오기 (기본값: false)
         this.isForceStartPersistent = localStorage.getItem('tileclear_force_start') === 'true';
+        // 저장된 색상 갯수 설정 불러오기 (기본값: 12)
+        this.roomColorCount = parseInt(localStorage.getItem('tileclear_color_count')) || 12;
 
         this.ui.initTheme();
         this.ui.initThemeSelector();
@@ -551,6 +571,9 @@ class AppController {
         });
 
         this.ui.toggleForceStart?.addEventListener('change', (e) => this.handleForceStartToggle(e.target.checked));
+
+        // 색상 갯수 변경 이벤트 바인딩 추가
+        this.ui.colorCount?.addEventListener('change', (e) => this.handleColorCountChange(parseInt(e.target.value)));
 
         const handleUnload = () => {
             if (this.roomManager.currentRoomCode) {
@@ -646,6 +669,18 @@ class AppController {
         this.network.onResetAll = (seed) => this.applyResetAll(seed);
     }
 
+    // [흐름] 색상 갯수 변경 처리 추가
+    handleColorCountChange(count) {
+        if (!this.roomManager.isHost) return;
+        this.roomColorCount = count;
+        localStorage.setItem('tileclear_color_count', count);
+
+        const me = this.roomManager.players.find(p => p.id === this.roomManager.myId);
+        if (me) {
+            this.network.updateMyState({ ...me, colorCount: count, updatedAt: Date.now() });
+        }
+    }
+
     // [내부] 게임 중/대기 중 상태에 따라 적절한 뷰 갱신
     _refreshPlayerView() {
         if (this.currentScreen === 'game') {
@@ -705,7 +740,10 @@ class AppController {
             );
             this.ui.updatePlayerCountUI(this.roomManager.players.length);
             const host = this.roomManager.players.find(p => p.isHost);
-            if (host) this.ui.updateForceStartUI(!!host.isForceStartOn);
+            if (host) {
+                this.ui.updateForceStartUI(!!host.isForceStartOn);
+                if (host.colorCount) this.ui.updateColorCountUI(host.colorCount);
+            }
 
             const isAnyPlaying = this.roomManager.players.some(p => p.isPlaying);
             this.ui.updateRoomStatusText(this.roomManager.isHost, isAnyPlaying);
@@ -740,7 +778,8 @@ class AppController {
             id:       this.roomManager.myId,
             nickname: this.roomManager.myNickname,
             isHost:   true,
-            isForceStartOn: this.isForceStartPersistent
+            isForceStartOn: this.isForceStartPersistent,
+            colorCount: this.roomColorCount // 방 생성 시 상태값 동기화 구조에 포함
         });
         this.roomManager.setRoomState(code, true);
         this.roomManager.addPlayer(this.roomManager.myId, true);
@@ -883,7 +922,9 @@ class AppController {
             this.network.unregisterRoomFromDB(this.roomManager.currentRoomCode);
         }
 
-        const seed = generateSeed(GameConfig);
+        const host = this.roomManager.players.find(p => p.isHost);
+        const count = host?.colorCount || 12;
+        const seed = generateSeed(GameConfig, count); // 수정된 구조 매개변수 주입
         this.network.broadcastGameStart(seed);
         this.startGameProcess(seed);
     }
@@ -1120,7 +1161,9 @@ class AppController {
     handleResetAll() {
         if (!this.roomManager.isHost) return;
         this.ui.showResetConfirmModal(() => {
-            const seed = generateSeed(GameConfig);
+            const host = this.roomManager.players.find(p => p.isHost);
+            const count = host?.colorCount || 12;
+            const seed = generateSeed(GameConfig, count); // 초기화 시에도 매개변수 주입
             this.network.broadcastResetAll(seed);
             this.applyResetAll(seed);
         });
