@@ -1,0 +1,9 @@
+{
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "destination": "https://multicolortile.duckdns.org/$1",
+      "permanent": true
+    }
+  ]
+}
