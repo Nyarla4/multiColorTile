@@ -20,4 +20,5 @@ jobs:
             git fetch --all
             git reset --hard origin/main
             npm install --omit=dev
-            pm2 reload multicolortile
+            pm2 startOrReload ecosystem.config.js --env production
+            pm2 save
