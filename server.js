@@ -13,11 +13,23 @@ const server = http.createServer((req, res) => {
         const activeRooms = Object.keys(rooms).filter(
             code => Object.keys(rooms[code]).length > 0
         );
+
+        // 방별 진행 상태 판별: 방 안에 isPlaying === true인 플레이어가 한 명이라도 있으면 게임 중
+        const roomsDetail = activeRoomCodes.map(code => {
+            const players = Object.values(rooms[code]);
+            const isPlaying = players.some(p => p?.isPlaying === true);
+            return { roomCode: code, isPlaying };
+        });
+
+        // 배포 스크립트에서 한 번에 판단할 수 있도록 요약 필드도 함께 제공
+        const anyPlaying = roomsDetail.some(r => r.isPlaying);
+
         res.writeHead(200, {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'   // ← 추가
+            'Access-Control-Allow-Origin': '*'
         });
-        res.end(JSON.stringify({ rooms: activeRooms }));
+        
+        res.end(JSON.stringify({ rooms: activeRooms, roomsDetail, anyPlaying }));
     }
     else {
         // 나머지 모든 경로 — 명시적으로 닫아줌
