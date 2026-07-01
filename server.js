@@ -19,6 +19,11 @@ const server = http.createServer((req, res) => {
         });
         res.end(JSON.stringify({ rooms: activeRooms }));
     }
+    else {
+        // 나머지 모든 경로 — 명시적으로 닫아줌
+        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end('Not Found');
+    }
 });
 
 // 2. CORS 설정: 허용할 도메인 목록
