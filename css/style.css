@@ -326,6 +326,7 @@ ul.list-box li {
     user-select: none;
     -webkit-user-select: none;
     -webkit-tap-highlight-color: transparent;  /* 터치 시 파란 깜빡임 제거 */
+    color: rgba(255,255,255,0.5);
 }
 
 /* ───────────── 결과 화면 ───────────── */
